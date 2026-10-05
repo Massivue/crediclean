@@ -1,0 +1,378 @@
+/*
+ * Styles for CrediClean's on-page controls.
+ *
+ * These load inside a shadow root, so none of this can affect ChatGPT's own
+ * interface and ChatGPT's stylesheets cannot affect these controls.
+ *
+ * Colours are driven by custom properties. The default set is the light theme;
+ * `[data-theme="dark"]` overrides them. The theme is chosen in overlay.js by
+ * measuring the page's actual background colour, because ChatGPT has its own
+ * light/dark setting that does not always follow the operating system.
+ */
+
+.cc-layer {
+  --cc-surface: #ffffff;
+  --cc-surface-raised: #f7f7f8;
+  --cc-border: #d9d9e0;
+  --cc-text: #1f2023;
+  --cc-text-muted: #5f6269;
+  --cc-accent: #2f6df6;
+  --cc-accent-text: #ffffff;
+  --cc-found: #8a5300;
+  --cc-found-bg: #fff4e0;
+  --cc-clear: #1d6b3f;
+  --cc-clear-bg: #e8f6ee;
+  --cc-warn: #9a2a2a;
+  --cc-warn-bg: #fdeaea;
+  --cc-shadow: 0 6px 24px rgba(15, 18, 25, 0.16);
+  --cc-badge-bg: rgba(255, 255, 255, 0.92);
+  --cc-badge-text: #1f2023;
+
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--cc-text);
+}
+
+.cc-layer[data-theme="dark"] {
+  --cc-surface: #27282b;
+  --cc-surface-raised: #303236;
+  --cc-border: #44464c;
+  --cc-text: #ececf1;
+  --cc-text-muted: #a8abb4;
+  --cc-accent: #5b8dff;
+  --cc-accent-text: #0d1016;
+  --cc-found: #ffd08a;
+  --cc-found-bg: #3b2f1b;
+  --cc-clear: #8fe0b0;
+  --cc-clear-bg: #1c3528;
+  --cc-warn: #ffb0b0;
+  --cc-warn-bg: #3a2222;
+  --cc-shadow: 0 6px 28px rgba(0, 0, 0, 0.5);
+  --cc-badge-bg: rgba(32, 33, 36, 0.92);
+  --cc-badge-text: #ececf1;
+}
+
+.cc-hidden {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------- */
+/* The badge that sits on each image                                      */
+/* --------------------------------------------------------------------- */
+
+.cc-badge {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 9px 5px 6px;
+  border: 1px solid var(--cc-border);
+  border-radius: 7px;
+  background: var(--cc-badge-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(15, 18, 25, 0.18);
+  color: var(--cc-badge-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0.82;
+  transition: opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+  max-width: 220px;
+}
+
+.cc-badge:hover,
+.cc-badge:focus-visible {
+  opacity: 1;
+  box-shadow: 0 3px 12px rgba(15, 18, 25, 0.26);
+}
+
+/* A clearly visible keyboard focus ring, in both themes. */
+.cc-badge:focus-visible,
+.cc-button:focus-visible,
+.cc-panel__close:focus-visible {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
+}
+
+.cc-badge__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--cc-accent);
+  color: var(--cc-accent-text);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  flex: none;
+}
+
+.cc-badge__label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-badge__spinner {
+  display: none;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--cc-border);
+  border-top-color: var(--cc-accent);
+  border-radius: 50%;
+  flex: none;
+}
+
+.cc-badge--busy {
+  cursor: progress;
+  opacity: 1;
+}
+
+.cc-badge--busy .cc-badge__spinner {
+  display: block;
+  animation: cc-spin 0.7s linear infinite;
+}
+
+@keyframes cc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Narrow windows: drop the text and keep just the mark, so the badge never
+   covers a meaningful part of the image. */
+@media (max-width: 640px) {
+  .cc-badge__label { display: none; }
+  .cc-badge { padding: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-badge { transition: none; }
+  .cc-badge--busy .cc-badge__spinner { animation-duration: 2s; }
+}
+
+/* --------------------------------------------------------------------- */
+/* The panel                                                              */
+/* --------------------------------------------------------------------- */
+
+.cc-panel {
+  position: absolute;
+  /* Wide enough that "Remove credentials & save" and the fact rows sit on one
+     line each, narrow enough to feel like a popover rather than a dialog. */
+  width: 376px;
+  max-width: calc(100vw - 24px);
+  /* Height follows the content. The cap is only a safety net for very short
+     viewports; the panel is far shorter than this in normal use, so nothing
+     scrolls. */
+  max-height: calc(100vh - 32px);
+  overflow: hidden auto;
+  background: var(--cc-surface);
+  border: 1px solid var(--cc-border);
+  border-radius: 11px;
+  box-shadow: var(--cc-shadow);
+  pointer-events: auto;
+  overscroll-behavior: contain;
+}
+
+.cc-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px 7px 12px;
+  border-bottom: 1px solid var(--cc-border);
+}
+
+.cc-panel__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: -0.1px;
+}
+
+.cc-panel__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: var(--cc-accent);
+  color: var(--cc-accent-text);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.cc-panel__close {
+  border: 0;
+  background: transparent;
+  color: var(--cc-text-muted);
+  font-size: 17px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cc-panel__close:hover {
+  background: var(--cc-surface-raised);
+  color: var(--cc-text);
+}
+
+.cc-panel__body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* --------------------------------------------------------------------- */
+/* Status line                                                            */
+/* --------------------------------------------------------------------- */
+
+/* A dot plus text. The dot is never the only signal: the wording alone says
+   what happened, so the panel still reads correctly without colour. */
+.cc-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cc-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: currentColor;
+}
+
+/* Keeps a long status from forcing the panel wider. */
+.cc-status__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cc-status--found { color: var(--cc-found); }
+.cc-status--clear { color: var(--cc-clear); }
+.cc-status--warn  { color: var(--cc-warn); }
+
+/* --------------------------------------------------------------------- */
+/* The three facts                                                        */
+/* --------------------------------------------------------------------- */
+
+.cc-facts {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  align-items: baseline;
+}
+
+.cc-facts dt {
+  color: var(--cc-text-muted);
+  font-size: 12.5px;
+}
+
+.cc-facts dd {
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+/* A long filename must not stretch the panel. The full value stays available
+   through the element's title attribute. */
+.cc-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------- */
+/* Action and hint                                                        */
+/* --------------------------------------------------------------------- */
+
+.cc-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 1px;
+}
+
+.cc-button {
+  flex: 1 1 auto;
+  /* 9px padding + 13px line + 2px border lands at about 37px tall. */
+  padding: 9px 12px;
+  min-height: 37px;
+  border: 1px solid var(--cc-border);
+  border-radius: 8px;
+  background: var(--cc-surface-raised);
+  color: var(--cc-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: filter 0.12s ease, border-color 0.12s ease;
+}
+
+.cc-button:hover:not(:disabled) { border-color: var(--cc-text-muted); }
+
+.cc-button--primary {
+  background: var(--cc-accent);
+  border-color: var(--cc-accent);
+  color: var(--cc-accent-text);
+}
+
+.cc-button--primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+.cc-button:disabled { cursor: default; }
+
+.cc-button--busy {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+/* The saved state stays legible rather than looking greyed out and broken. */
+.cc-button--done {
+  background: var(--cc-clear-bg);
+  border-color: var(--cc-clear);
+  color: var(--cc-clear);
+  opacity: 1;
+}
+
+.cc-hint {
+  margin: 0;
+  color: var(--cc-text-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.cc-button:focus-visible,
+.cc-panel__close:focus-visible {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
+}
+
+/* Narrow windows: keep the panel inside the viewport with a comfortable gutter. */
+@media (max-width: 460px) {
+  .cc-panel { width: calc(100vw - 24px); }
+  .cc-facts { grid-template-columns: 52px minmax(0, 1fr); }
+}
+
+@media (prefers-contrast: more) {
+  .cc-panel, .cc-button { border-width: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-button { transition: none; }
+}

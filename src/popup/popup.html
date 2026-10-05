@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CrediClean</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="head">
+      <img class="head__logo" src="../icons/icon-48.png" width="26" height="26" alt="" />
+      <div>
+        <h1 class="head__name">CrediClean</h1>
+        <p class="head__tag">Content Credentials for AI images</p>
+      </div>
+    </header>
+
+    <section class="status" aria-live="polite">
+      <span class="status__dot" id="status-dot"></span>
+      <span id="status-text">Checking…</span>
+    </section>
+
+    <section class="block">
+      <p class="lead">
+        Click the <strong>CC</strong> button on a generated image to see its
+        credentials and save a clean copy.
+      </p>
+      <div class="sites" id="sites"></div>
+    </section>
+
+    <section class="block">
+      <label class="row">
+        <input type="checkbox" id="setting-enabled" />
+        <span>Enabled</span>
+      </label>
+      <label class="row">
+        <input type="checkbox" id="setting-buttons" />
+        <span>Show buttons on images</span>
+      </label>
+      <label class="row">
+        <input type="checkbox" id="setting-xmp" />
+        <span>Also remove linked XMP data</span>
+      </label>
+      <p class="saved" id="saved-note" hidden>Saved</p>
+    </section>
+
+    <footer class="foot">
+      <p>Images are processed in your browser. Nothing is uploaded.</p>
+      <p>Does not remove invisible watermarks in the picture.</p>
+      <p class="foot__meta"><span id="version"></span> · Not affiliated with these services</p>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

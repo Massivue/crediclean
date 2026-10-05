@@ -1,0 +1,12 @@
+# Third-party sample images, fetched on demand by `npm run fetch-samples`.
+tests/samples/*
+!tests/samples/.gitkeep
+
+# Build output from `npm run package`.
+build/
+*.zip
+
+node_modules/
+
+# Throwaway self-signed certificate for the browser test, generated on demand.
+tests/e2e/*.pem
