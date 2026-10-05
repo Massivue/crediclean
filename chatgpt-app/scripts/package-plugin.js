@@ -2,26 +2,29 @@
 /**
  * Build the plugin archive you upload to ChatGPT.
  *
- * WHAT THE ARCHIVE IS, AND WHAT IT IS NOT
+ * TWO KINDS OF ARCHIVE, AND THE DIFFERENCE MATTERS
  *
- * The archive does NOT contain the server, and OpenAI does not run it for you.
- * It is a manifest that says "this plugin is called CrediClean, and its tools
- * live at this address". The server still runs on your machine or your host.
+ * By default this builds a SKILL-ONLY archive. It carries the whole of
+ * CrediClean as a skill: instructions plus a Python script that ChatGPT runs
+ * in its own sandbox, on a file already there. Nothing to host, nothing to
+ * expose, no server, and the image never leaves OpenAI's sandbox. This is the
+ * one to test with.
  *
- * So the archive cannot be tested on its own. Point it at a running server
- * first. For local testing, ChatGPT's Secure MCP Tunnel reaches a server on
- * your own machine without putting it on the public internet, which is easier
- * and safer than a tunnel service.
+ * Pass a server address and it ALSO wires in the MCP server. That archive does
+ * NOT contain the server and OpenAI does not run it: it is a label saying
+ * where the tools live, and the server has to be running and reachable. Only
+ * useful once there is somewhere to run it.
  *
- * HOW SURE WE ARE OF THIS FORMAT: moderately. The manifest shape below comes
- * from OpenAI's plugin packaging documentation as summarised by a search
- * engine, because every OpenAI domain was blocked from the machine this was
- * written on. The JSON here is valid and self-consistent, but a field name
- * could be wrong. If the upload is rejected, the error message names the
- * field, and fixing it is a one-line change in this file.
+ * HOW SURE WE ARE OF THIS FORMAT: moderately. The manifest shape comes from
+ * OpenAI's plugin packaging documentation as summarised by a search engine,
+ * because every OpenAI domain was blocked from the machine this was written
+ * on. The JSON is valid and self-consistent, but a field name could be wrong.
+ * If an upload is rejected, the error names the field, and fixing it is a
+ * one-line change here.
  *
  * Usage:
- *   node scripts/package-plugin.js https://your-server.example.com
+ *   node scripts/package-plugin.js                                 # skill only
+ *   node scripts/package-plugin.js https://your-server.example.com # + MCP server
  */
 
 import { execFileSync } from 'node:child_process';
@@ -34,22 +37,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.join(HERE, '..');
 const BUILD = path.join(APP_ROOT, 'build');
 
-const serverUrl = (process.argv[2] || process.env.CREDICLEAN_PUBLIC_URL || '').replace(/\/+$/, '');
+const serverUrl = (process.argv[2] || '').replace(/\/+$/, '');
 
-if (!serverUrl) {
-  console.error(`
-Give me the address your MCP server is reachable at.
-
-  node scripts/package-plugin.js https://your-server.example.com
-
-The archive records that address. It does not contain the server, and OpenAI
-will not run the server for you: it has to be running and reachable before
-ChatGPT can use the plugin.
-`);
-  process.exit(1);
-}
-
-if (!/^https:\/\//.test(serverUrl) && !/^http:\/\/localhost/.test(serverUrl)) {
+if (serverUrl && !/^https:\/\//.test(serverUrl) && !/^http:\/\/localhost/.test(serverUrl)) {
   console.error(`Refusing to build with "${serverUrl}". Use an https:// address.`);
   process.exit(1);
 }
@@ -94,22 +84,23 @@ const manifest = {
         category: 'productivity',
         privacyPolicyUrl: 'https://github.com/Massivue/crediclean/blob/main/PRIVACY.md',
       },
-      // Which MCP servers in mcp.json this plugin exposes.
-      apps: ['crediclean'],
+      // Where the skill lives inside this archive.
+      skills: './skills/',
+      // Only claim an MCP server when one was actually given an address.
+      ...(serverUrl ? { apps: ['crediclean'] } : {}),
     },
   },
 };
 
-/** Where the tools actually live. */
-const mcp = {
-  $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
-  mcpServers: {
-    crediclean: {
-      type: 'streamable-http',
-      url: `${serverUrl}/mcp`,
-    },
-  },
-};
+/** Where the MCP tools live, when there are any. */
+const mcp = serverUrl
+  ? {
+      $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
+      mcpServers: {
+        crediclean: { type: 'streamable-http', url: `${serverUrl}/mcp` },
+      },
+    }
+  : null;
 
 /*
  * A second copy of the pointers under .codex-plugin/, which the documentation
@@ -120,7 +111,8 @@ const codexManifest = {
   name: manifest.name,
   version: manifest.version,
   description: manifest.description,
-  mcpServers: './mcp.json',
+  skills: './skills/',
+  ...(serverUrl ? { mcpServers: './mcp.json' } : {}),
 };
 
 function write(relativePath, data) {
@@ -132,8 +124,28 @@ function write(relativePath, data) {
 
 fs.rmSync(BUILD, { recursive: true, force: true });
 write('plugin.json', manifest);
-write('mcp.json', mcp);
+if (mcp) write('mcp.json', mcp);
 write('.codex-plugin/plugin.json', codexManifest);
+
+/*
+ * The skill itself: SKILL.md plus the Python that does the work. This is the
+ * part that makes the archive useful on its own, because ChatGPT runs it in
+ * its own sandbox rather than calling out to anything.
+ */
+const skillSource = path.join(APP_ROOT, 'skill');
+const skillTarget = path.join(BUILD, 'crediclean', 'skills', 'crediclean');
+fs.cpSync(skillSource, skillTarget, { recursive: true });
+
+/*
+ * Prove the script survived the copy and is still valid Python. A compile
+ * check, not a run: running it with no arguments prints usage and exits 2,
+ * which is correct behaviour but would look like a failure here.
+ */
+execFileSync('python3', ['-m', 'py_compile', path.join(skillTarget, 'scripts', 'crediclean.py')], {
+  stdio: 'inherit',
+});
+// py_compile leaves a __pycache__ behind; it has no business in the archive.
+fs.rmSync(path.join(skillTarget, 'scripts', '__pycache__'), { recursive: true, force: true });
 
 const zipPath = path.join(BUILD, `crediclean-plugin-${pkg.version}.zip`);
 execFileSync('zip', ['-r', '-q', zipPath, 'crediclean'], { cwd: BUILD });
@@ -144,21 +156,32 @@ const listing = execFileSync('unzip', ['-Z1', zipPath], { encoding: 'utf8' })
   .filter(Boolean);
 
 console.log(`\nPlugin archive: ${zipPath}`);
-console.log(`Points at     : ${mcp.mcpServers.crediclean.url}`);
+console.log(`Kind          : ${serverUrl ? 'skill + MCP server' : 'skill only (nothing to host)'}`);
+if (mcp) console.log(`MCP server at : ${mcp.mcpServers.crediclean.url}`);
 console.log('Contains      :');
 for (const entry of listing) console.log(`  ${entry}`);
-console.log(`
-REMEMBER: this archive does NOT contain the server. Start the server and make
-sure the address above answers before uploading, or ChatGPT will install a
-plugin whose tools go nowhere.
-
-If the upload is rejected, the error names the field it did not like. The
-manifest is built in scripts/package-plugin.js and is a one-line fix.
+if (serverUrl) {
+  console.log(`
+REMEMBER: this archive does NOT contain the MCP server. Start the server and
+make sure the address above answers before uploading, or ChatGPT will install
+a plugin whose tools go nowhere. The skill part works regardless.
 `);
+  if (serverUrl.startsWith('http://localhost')) {
+    console.log(
+      'NOTE: that address is localhost, which ChatGPT cannot reach. For a local\n' +
+        'server use Secure MCP Tunnel instead of putting it in an archive.\n',
+    );
+  }
+} else {
+  console.log(`
+This archive is self-contained. The skill runs inside ChatGPT's own sandbox,
+so there is nothing to host and nothing to expose.
 
-if (serverUrl.startsWith('http://localhost')) {
-  console.log(
-    'NOTE: this points at localhost, which ChatGPT cannot reach from its own\n' +
-      'servers. For local testing use Secure MCP Tunnel instead of an archive.\n',
-  );
+Upload it at: ChatGPT -> Plugins -> Add -> Upload plugin archive
+`);
 }
+
+console.log(
+  'If an upload is rejected, the error names the field it did not like. The\n' +
+    'manifest is built in scripts/package-plugin.js and is a one-line fix.\n',
+);

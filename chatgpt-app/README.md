@@ -143,6 +143,50 @@ widen this to everything.**
 
 ---
 
+## Two ways to run this, and the easy one came later
+
+There are two builds in this folder. They do the same job by different routes.
+
+| | **The skill** (`skill/`) | **The MCP server** (`src/`) |
+|---|---|---|
+| Where the work happens | Inside ChatGPT's own sandbox | On a server you run |
+| Anything to host? | **No** | Yes, with a public address or a tunnel |
+| Does the image leave OpenAI? | **No** | Yes, to your server |
+| How you install it | **Upload plugin archive** | Create custom MCP server |
+| Depends on `openai/fileParams` resolving | **No** | **Yes.** This is the open question |
+| Language | Python | JavaScript |
+
+**Test with the skill.** It is self-contained, needs nothing hosted, and it
+sidesteps the one unknown that could have killed the whole idea: the skill runs
+*inside* the sandbox where `/mnt/data/...` is a real path, so there is no need
+for ChatGPT to hand a file out to anything.
+
+```bash
+npm run package          # builds the skill-only archive
+```
+
+Then in ChatGPT: **Plugins → Add → Upload plugin archive**.
+
+The MCP server is still here and still passes its tests. It is the right shape
+if the work ever needs to happen on infrastructure you control.
+
+### Is the Python a second implementation that can drift?
+
+Yes, and that is handled rather than hoped about. `npm test` runs both
+implementations over the same images and **fails if a single output byte
+differs**. On the real C2PA-signed files from the Content Authenticity
+Initiative, the Python produces output byte-identical to the JavaScript
+engine, with ImageMagick confirming zero differing pixels:
+
+```
+C.jpg           132,518 ->    86,634   identical to JS, 0 differing pixels
+CA.jpg          166,864 ->    49,591   identical to JS, 0 differing pixels
+exp-test1.png 5,884,439 -> 2,444,293   identical to JS, 0 differing pixels
+```
+
+The parity test caught a real bug during the port: an unsupported format was
+being reported as a damaged file. That is what it is for.
+
 ## Which of ChatGPT's three "Add" options you want
 
 ChatGPT's Plugins page offers three things, and only one of them is for
@@ -151,13 +195,16 @@ testing this.
 | Menu item | What it is | Use it? |
 |---|---|---|
 | **Create custom MCP server** | Connect a running server, by public URL **or by Secure MCP Tunnel** | **Yes. This is the one.** |
-| **Upload plugin archive** | A ZIP holding a manifest that POINTS AT your server | Later, for packaging |
+| **Upload plugin archive** | A ZIP. **With the skill inside, it is self-contained.** With an MCP server, it only points at one | **Yes, for the skill** |
 | **Create plugin** | Build a plugin in ChatGPT's own UI | No |
 
-**The archive does not contain the server, and OpenAI does not run it for
-you.** It is a label saying where your tools live. The server still has to be
-running and reachable. So uploading an archive cannot, by itself, test
-anything. `npm run package` builds one when you want it.
+**An archive containing a skill IS self-contained**, because ChatGPT copies
+the bundle into its own execution environment and runs the script there.
+
+**An archive containing an MCP server is not.** It is a label saying where
+your tools live, and the server still has to be running and reachable. OpenAI
+does not host it for you, and ChatGPT web cannot run a bundled local server at
+all: it only reaches remote ones.
 
 **Secure MCP Tunnel is the useful discovery here.** OpenAI documents it as a
 way to connect a local or private MCP server "without exposing the server to
