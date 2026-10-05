@@ -1,0 +1,22 @@
+{
+  "name": "crediclean-chatgpt-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CrediClean as a ChatGPT app: an MCP server that inspects and removes Content Credentials from images in a ChatGPT conversation.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test \"tests/unit/**/*.test.js\"",
+    "test:e2e": "node tests/e2e/run-app-tests.js",
+    "check": "npm test && npm run test:e2e && npm run test:widget",
+    "test:widget": "node tests/e2e/run-widget-tests.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^3.25.0"
+  }
+}

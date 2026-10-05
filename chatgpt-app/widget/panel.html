@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CrediClean</title>
+<style>
+  /*
+   * The same card the Chrome extension shows, rebuilt for the frame ChatGPT
+   * draws. No framework and no build step: this file is the whole widget, and
+   * what you read here is what runs.
+   *
+   * It must look right on a light or a dark ChatGPT, so every colour is a
+   * token with a dark-mode override rather than a fixed value.
+   */
+  :root {
+    --cc-surface: #ffffff;
+    --cc-border: #e3e4e8;
+    --cc-text: #1f2023;
+    --cc-text-muted: #6b6e76;
+    --cc-accent: #2f6df6;
+    --cc-accent-text: #ffffff;
+    --cc-found: #c77700;
+    --cc-clear: #1f8f4e;
+    --cc-warn: #b4401f;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --cc-surface: #27282b;
+      --cc-border: #44464c;
+      --cc-text: #ececf1;
+      --cc-text-muted: #a8abb4;
+      --cc-accent: #5b8dff;
+      --cc-found: #e6a53d;
+      --cc-clear: #4ad17f;
+      --cc-warn: #ff8a65;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--cc-text);
+  }
+
+  .card {
+    max-width: 420px;
+    border: 1px solid var(--cc-border);
+    border-radius: 12px;
+    background: var(--cc-surface);
+    overflow: hidden;
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--cc-border);
+    font-weight: 600;
+  }
+  .mark {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: var(--cc-accent);
+    color: var(--cc-accent-text);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .body { padding: 14px; }
+
+  .status { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .status--found .dot { background: var(--cc-found); }
+  .status--found { color: var(--cc-found); }
+  .status--clear .dot { background: var(--cc-clear); }
+  .status--clear { color: var(--cc-clear); }
+  .status--warn .dot { background: var(--cc-warn); }
+  .status--warn { color: var(--cc-warn); }
+
+  dl.facts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 16px;
+    margin: 12px 0 0;
+  }
+  dl.facts dt { color: var(--cc-text-muted); }
+  dl.facts dd {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .actions { margin-top: 14px; }
+  .button {
+    display: block;
+    width: 100%;
+    padding: 9px 14px;
+    border: 1px solid var(--cc-border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--cc-text);
+    font: inherit;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .button--primary {
+    border-color: transparent;
+    background: var(--cc-accent);
+    color: var(--cc-accent-text);
+  }
+  .button--done {
+    border-color: var(--cc-clear);
+    background: transparent;
+    color: var(--cc-clear);
+    cursor: default;
+  }
+  .button[disabled] { opacity: 0.7; cursor: default; }
+  .button:focus-visible { outline: 2px solid var(--cc-accent); outline-offset: 2px; }
+
+  .hint { margin: 10px 0 0; color: var(--cc-text-muted); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="head"><span class="mark" aria-hidden="true">CC</span><span>CrediClean</span></div>
+  <div class="body" id="body"></div>
+</div>
+
+<script type="module">
+/*
+ * The widget runs in a sandboxed frame. It can read what the tool returned,
+ * and it can ask ChatGPT to call another of our tools. It cannot reach
+ * ChatGPT's own page, and it must not try.
+ *
+ * SECURITY: every value below comes from an image file, which is untrusted
+ * input. Everything is written with textContent, never innerHTML, so a
+ * crafted filename cannot inject markup. This is the same rule the extension
+ * follows, for the same reason.
+ */
+
+const body = document.getElementById('body');
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  return node;
+}
+
+function statusLine(tone, text) {
+  const line = el('div', `status status--${tone}`);
+  const dot = el('span', 'dot');
+  dot.setAttribute('aria-hidden', 'true');
+  line.append(dot, el('span', null, text));
+  return line;
+}
+
+function facts(data) {
+  const list = el('dl', 'facts');
+  const rows = [
+    ['Format', data.facts?.format],
+    ['Size', data.facts?.dimensions],
+    ['File', data.facts?.filename],
+  ];
+  for (const [label, value] of rows) {
+    list.append(el('dt', null, label));
+    const dd = el('dd', null, value || 'Unknown');
+    if (label === 'File' && value) dd.title = value;
+    list.append(dd);
+  }
+  return list;
+}
+
+/** Which coloured dot suits this outcome. */
+function toneFor(data) {
+  if (data.status === 'error' || data.status === 'unreadable' || data.status === 'unsupported-format') {
+    return 'warn';
+  }
+  if (data.removed || data.status === 'no-credentials-detected') return 'clear';
+  return 'found';
+}
+
+function render(data) {
+  body.replaceChildren();
+  if (!data || typeof data !== 'object') {
+    body.append(statusLine('warn', 'Nothing to show yet'));
+    return;
+  }
+
+  body.append(statusLine(toneFor(data), data.headline || 'CrediClean'));
+  if (data.facts) body.append(facts(data));
+
+  // Already done: offer the file, and repeat the limit of what was done.
+  if (data.removed && data.download?.url) {
+    const actions = el('div', 'actions');
+    const link = el('a', 'button button--primary', 'Download the clean copy');
+    link.href = data.download.url;
+    link.setAttribute('download', data.download.filename || 'image');
+    link.rel = 'noopener';
+    actions.append(link);
+    body.append(actions);
+    body.append(el('p', 'hint', data.note || ''));
+    return;
+  }
+
+  // Credentials present and not yet removed: offer the one action.
+  if (data.canRemove) {
+    const actions = el('div', 'actions');
+    const button = el('button', 'button button--primary', 'Remove credentials & save');
+    button.type = 'button';
+    button.addEventListener('click', () => removeNow(button));
+    actions.append(button);
+    body.append(actions);
+    return;
+  }
+
+  if (data.message) body.append(el('p', 'hint', data.message));
+}
+
+/**
+ * Ask ChatGPT to run our removal tool on the same image.
+ *
+ * `callTool` is the only route from a widget back to our server, and it works
+ * only because the tool is marked `openai/widgetAccessible`. If it is not
+ * available (an older host, or mobile), say so plainly rather than leaving a
+ * button that silently does nothing.
+ */
+async function removeNow(button) {
+  const api = window.openai;
+  if (!api || typeof api.callTool !== 'function') {
+    button.disabled = true;
+    button.textContent = 'Not available here';
+    body.append(
+      el('p', 'hint', 'Ask ChatGPT to remove the credentials and it will do the same thing.'),
+    );
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Removing…';
+  try {
+    const result = await api.callTool('remove_image_credentials', {
+      image: window.openai?.toolInput?.image,
+    });
+    const next = result?.structuredContent || result;
+    if (next && typeof next === 'object') render(next);
+  } catch (error) {
+    button.textContent = 'Remove credentials & save';
+    button.disabled = false;
+    body.append(el('p', 'hint', 'That did not work. Please try again.'));
+    console.warn('[CrediClean] callTool failed.', error);
+  }
+}
+
+/** Read whatever the host has for us right now. */
+function currentData() {
+  return window.openai?.toolOutput ?? window.__crediCleanTestData ?? null;
+}
+
+render(currentData());
+
+/*
+ * The host sets the data after the frame loads, and again when a follow-up
+ * tool call finishes, so re-render on its event. The name has changed across
+ * SDK versions, so listen for both rather than pick one and be wrong.
+ */
+for (const event of ['openai:set_globals', 'openai:setGlobals']) {
+  window.addEventListener(event, () => render(currentData()));
+}
+</script>
+</body>
+</html>
