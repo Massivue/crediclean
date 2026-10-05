@@ -75,18 +75,42 @@ export class ButtonManager {
   }
 
   createBadge(entry) {
+    /*
+     * The control is the CC mark and nothing else.
+     *
+     * It sits on top of someone's picture, so it earns its space by being
+     * small. What it does is explained on hover by the tooltip below and to
+     * screen readers by the aria-label, which means the visible button can
+     * stay down to the one thing a user needs to recognise and click.
+     */
     const badge = element('button', 'cc-badge');
     badge.type = 'button';
-    badge.setAttribute('aria-label', `Inspect image credentials with ${PRODUCT_NAME}`);
-    badge.title = `${PRODUCT_NAME}: inspect this image's Content Credentials`;
+    badge.setAttribute('aria-label', `Inspect credentials with ${PRODUCT_NAME}`);
 
     const mark = element('span', 'cc-badge__mark', 'CC');
     mark.setAttribute('aria-hidden', 'true');
-    const label = element('span', 'cc-badge__label', 'Inspect credentials');
+
+    /*
+     * Our own tooltip rather than the browser's `title`, for two reasons: the
+     * native one waits about a second before appearing, and it is styled by
+     * the operating system, so it would be the one part of CrediClean that
+     * does not look like the rest. It lives inside the shadow root, so the
+     * page cannot restyle it and it cannot leak out.
+     */
+    const tip = element('span', 'cc-badge__tip', 'Inspect credentials');
+    tip.setAttribute('aria-hidden', 'true');
+
+    /*
+     * The busy text is never shown, but it is announced. A screen reader user
+     * gets told the work started; everyone else sees the mark spin.
+     */
+    const label = element('span', 'cc-badge__label');
+    label.textContent = 'Inspect credentials';
+
     const spinner = element('span', 'cc-badge__spinner');
     spinner.setAttribute('aria-hidden', 'true');
 
-    badge.append(mark, label, spinner);
+    badge.append(mark, tip, label, spinner);
 
     badge.addEventListener('click', (event) => {
       // Stop the click reaching ChatGPT, which would open its image viewer.

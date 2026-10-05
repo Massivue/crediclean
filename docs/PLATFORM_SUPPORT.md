@@ -1,6 +1,6 @@
 # Platform support research
 
-Written 5 October 2026. Updated for CrediClean 0.4.0.
+Written 5 October 2026. Updated for CrediClean 0.5.0.
 
 **Scope note.** This research started wider than the shipped product. A fourth
 platform was investigated and then dropped before release, because we never

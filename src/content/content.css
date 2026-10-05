@@ -61,29 +61,30 @@
 /* The badge that sits on each image                                      */
 /* --------------------------------------------------------------------- */
 
+/* The whole control: just the CC mark, at a size that is still an easy
+   target. 28px square clears the usual minimum for a pointer target while
+   staying small enough to sit on a picture without covering it. */
 .cc-badge {
   position: absolute;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
   margin: 0;
-  padding: 5px 9px 5px 6px;
+  padding: 0;
   border: 1px solid var(--cc-border);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--cc-badge-bg);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   box-shadow: 0 2px 8px rgba(15, 18, 25, 0.18);
   color: var(--cc-badge-text);
   font: inherit;
-  font-size: 12px;
-  font-weight: 500;
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
   opacity: 0.82;
-  transition: opacity 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
-  max-width: 220px;
+  transition: opacity 0.12s ease, box-shadow 0.12s ease;
 }
 
 .cc-badge:hover,
@@ -103,36 +104,78 @@
 .cc-badge__mark {
   display: inline-grid;
   place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
   background: var(--cc-accent);
   color: var(--cc-accent-text);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  flex: none;
 }
 
+/* Announced to screen readers, never drawn. Not `display: none`, which would
+   take it out of the accessibility tree along with the rest. */
 .cc-badge__label {
-  white-space: nowrap;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The hover tooltip. Sits above the button, out of the way of the image. */
+.cc-badge__tip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--cc-badge-text);
+  color: var(--cc-badge-bg);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s ease;
+}
+
+.cc-badge:hover .cc-badge__tip,
+.cc-badge:focus-visible .cc-badge__tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* While working, the tooltip would be noise on top of the spinner. */
+.cc-badge--busy .cc-badge__tip {
+  display: none;
 }
 
 .cc-badge__spinner {
   display: none;
-  width: 11px;
-  height: 11px;
+  width: 14px;
+  height: 14px;
   border: 2px solid var(--cc-border);
   border-top-color: var(--cc-accent);
   border-radius: 50%;
-  flex: none;
 }
 
 .cc-badge--busy {
   cursor: progress;
   opacity: 1;
+}
+
+/* One thing at a time in a 28px square: the spinner takes the mark's place. */
+.cc-badge--busy .cc-badge__mark {
+  display: none;
 }
 
 .cc-badge--busy .cc-badge__spinner {
@@ -142,13 +185,6 @@
 
 @keyframes cc-spin {
   to { transform: rotate(360deg); }
-}
-
-/* Narrow windows: drop the text and keep just the mark, so the badge never
-   covers a meaningful part of the image. */
-@media (max-width: 640px) {
-  .cc-badge__label { display: none; }
-  .cc-badge { padding: 5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

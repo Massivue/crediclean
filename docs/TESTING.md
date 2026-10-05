@@ -10,11 +10,13 @@ Nothing is marked Passed unless it was actually run and actually passed.
 ```bash
 cd crediclean
 
-npm test                   # 103 unit tests, no network, no browser
+npm test                   # 114 unit tests, no network, no browser
 npm run fetch-samples      # download real C2PA-signed images (optional)
-npm test                   # now 116, including 13 against those real files
+npm test                   # now 127, including 13 against those real files
 npm run test:e2e           # 70 checks in a real Chromium with the extension loaded
+npm run test:platforms     # 66 checks across the three platforms, page scope and button
 npm run verify             # check the manifest against the code
+npm run screenshots        # rebuild the store screenshots from the real extension
 ```
 
 `npm test` needs only Node 20 or newer. `npm run test:e2e` additionally needs
@@ -24,10 +26,10 @@ Playwright and the ability to listen on port 443.
 
 | Suite | Checks | Result |
 |---|---|---|
-| Unit tests (synthetic fixtures) | 103 | **Passed** |
+| Unit tests (synthetic fixtures) | 114 | **Passed** |
 | Unit tests (real signed images) | 13 | **Passed** |
 | Browser tests, ChatGPT (real Chromium, extension loaded) | 70 | **Passed** |
-| Browser tests, all three platforms | 48 | **Passed** |
+| Browser tests, all three platforms, page scope and button | 66 | **Passed** |
 | Independent check with ImageMagick | 3 images | **Passed** |
 | Live websites (ChatGPT, Gemini, Grok) | — | **Passed**, by the product owner, not from this environment |
 
@@ -180,19 +182,39 @@ different conversation layouts.
 The detection rules are matched against a page we do not control and which can
 change without notice.
 
-Please run these five manual checks:
+Please run these manual checks.
+
+**The main flow**
 
 1. Load the extension (see the README).
 2. Open ChatGPT and find or create a conversation with a generated image.
-3. **Does a small "CC Inspect credentials" button appear on the image?**
-   If not, the detection rules need updating: everything else is working.
+3. **Does a small CC button appear on the image?** Hovering it should read
+   "Inspect credentials". If no button appears, the detection rules need
+   updating: everything else is working.
 4. Click it. It should report what the image contains within a second or two.
 5. If credentials were found, remove them and save. Then upload the saved file
    to [contentcredentials.org/verify](https://contentcredentials.org/verify)
    and confirm it reports no credentials, and that the picture still looks right.
 
-Also worth checking: that the button does not appear on your profile picture,
-and that ChatGPT itself still behaves normally.
+**Where the button must NOT appear**
+
+These are the checks that cannot be fully automated here, because our test
+pages are a reconstruction of ChatGPT rather than ChatGPT itself. The browser
+suite covers the same journey against that reconstruction; only you can
+confirm it against the real site.
+
+6. Open ChatGPT's **GPT / plugins** pages. There should be no CC button
+   anywhere, on any GPT icon.
+7. From there, go **back into a conversation** without reloading. The button
+   should come back on the generated image.
+8. Open **Settings** over a conversation. The buttons should disappear while
+   it is open and return when it closes.
+9. Check the **start page**, the **sidebar** and your **profile picture**.
+   Nothing should get a button.
+10. Open the extension's popup on a GPT/plugins page. It should say
+    **"Not active on this page"**, not "Active on ChatGPT".
+
+Also worth checking: that ChatGPT itself still behaves normally.
 
 If step 3 fails, that is the expected failure and it is fixable. The file to
 change is `src/content/image-detector.js`, and `docs/TROUBLESHOOTING.md`

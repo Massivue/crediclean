@@ -5,7 +5,7 @@ embedded in AI-generated images, without leaving the page.
 
 Works on **ChatGPT, Google Gemini and Grok**.
 
-Version 0.4.0. Free, open source, no account, no server.
+Version 0.5.0. Free, open source, no account, no server.
 
 ---
 
@@ -30,10 +30,27 @@ when, and with what. They follow a standard called C2PA.
 Normally, removing that data means downloading the image, opening another
 program, processing it, and downloading it again.
 
-CrediClean puts a small button on the image inside ChatGPT. Click it and you
-see what the image actually contains. If you want, save a copy with the
-credentials removed. The copy is **pixel-for-pixel identical** to the original:
-nothing is re-compressed and no quality is lost.
+CrediClean puts a small **CC** button on the image, right there in the
+conversation. Click it and you see what the image actually contains. If you
+want, save a copy with the credentials removed. The copy is **pixel-for-pixel
+identical** to the original: nothing is re-compressed and no quality is lost.
+
+## Where the button appears, and where it does not
+
+The button belongs on generated pictures and nowhere else, so two separate
+rules have to agree before one is drawn.
+
+**The page has to be a conversation.** On ChatGPT that means a chat, a chat
+with a custom GPT, or a shared conversation. Its GPT store, its plugin pages,
+its settings and its other sections get nothing at all, and the extension
+unmounts itself the moment you navigate to one, without a page reload.
+
+**The image has to look like a generated picture.** It must come from the
+site's own content host or sit inside a reply, be a large enough file, and
+**be drawn large enough on screen**. That last rule is what keeps the button
+off a site's own interface art: a custom GPT's icon is a 512px file served
+from the very same host as a generated image, and the only thing that
+separates them is that the icon is drawn at about 40px.
 
 ## What it does not do, and will not claim
 
@@ -105,8 +122,8 @@ look for the small **CC** button on the image.
 ## Using it
 
 1. Open a ChatGPT conversation containing an image.
-2. Hover over the image. A small **CC Inspect credentials** button appears at
-   the bottom left.
+2. A small **CC** button appears at the bottom left of the image. Hover it and
+   a tooltip reads "Inspect credentials".
 3. Click it. Within a second or two a panel shows what the image contains.
 4. If credentials were found, click **Remove credentials & save**. The image
    is processed straight away, with no second confirmation.
@@ -189,11 +206,11 @@ checks in the panel after every removal.
 ## Testing
 
 ```bash
-npm test                 # 103 unit tests
+npm test                 # 114 unit tests
 npm run fetch-samples    # download real C2PA-signed images
-npm test                 # now 116, including 13 against those real files
+npm test                 # now 127, including 13 against those real files
 npm run test:e2e         # 70 ChatGPT checks in a real Chromium
-npm run test:platforms   # 48 checks across all three platforms
+npm run test:platforms   # 66 checks across all three platforms
 npm run verify           # check the manifest matches the code
 ```
 

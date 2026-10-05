@@ -65,6 +65,22 @@ export const DEFAULT_EXCLUDED_FRAGMENTS = [
 /** Minimum rendered edge, in CSS pixels, for an image to count as content. */
 export const DEFAULT_MIN_EDGE_PX = 96;
 
+/**
+ * Minimum size an image must actually be DRAWN at to count as content.
+ *
+ * This is a separate number from `DEFAULT_MIN_EDGE_PX`, and the distinction
+ * matters more than it looks. A site's own interface pictures are often large
+ * files displayed tiny: a custom GPT's icon in ChatGPT's store is served from
+ * the same user-content host as a generated image and its source file can be
+ * 512px square, but it is drawn at about 40px. Judging on the file's size
+ * alone therefore cannot tell a store icon from a generated picture, which is
+ * exactly how CrediClean's button ended up on ChatGPT's GPT pages.
+ *
+ * Judging on the drawn size can: a generated image in a conversation fills the
+ * message, and nothing a user would want to clean is rendered thumbnail-sized.
+ */
+export const DEFAULT_MIN_RENDERED_EDGE_PX = 96;
+
 export const CLASSIFICATION = {
   CONTENT: 'content',
   INTERFACE: 'interface',
@@ -82,6 +98,8 @@ export const CLASSIFICATION = {
  * @param {string[]} config.conversationSelectors containers that hold replies
  * @param {string[]} [config.contentUrlFragments] addresses that positively mean content
  * @param {string[]} [config.excludedUrlFragments] extra exclusions for this site
+ * @param {(route: {pathname: string, hash: string}) => boolean} [config.isSupportedRoute]
+ *        which pages of the site the extension should mount on
  * @param {object} config.support internal support status
  * @returns {object} the adapter
  */
@@ -90,6 +108,18 @@ export function defineAdapter(config) {
     contentUrlFragments: [],
     extraExcludedFragments: [],
     minEdgePx: DEFAULT_MIN_EDGE_PX,
+    minRenderedEdgePx: DEFAULT_MIN_RENDERED_EDGE_PX,
+    /*
+     * Which pages of this site CrediClean runs on.
+     *
+     * The default is "all of them", which is right for a site that is only a
+     * chat. A site with a store, a settings area and other sections overrides
+     * this so the extension mounts in conversations and nowhere else.
+     *
+     * Takes a plain {pathname, hash} rather than a Location so it stays pure
+     * and testable without a browser.
+     */
+    isSupportedRoute: () => true,
     ...config,
     interfaceAncestors: config.interfaceAncestors || DEFAULT_INTERFACE_ANCESTORS,
     excludedUrlFragments: [

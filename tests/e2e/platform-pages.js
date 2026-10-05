@@ -17,6 +17,34 @@
 export const PLATFORM_PAGES = {
   chatgpt: {
     host: 'chatgpt.com',
+    /*
+     * ChatGPT's GPT / plugin pages, reconstructed from the real defect.
+     *
+     * Each card shows a GPT's icon. The icon is served from the SAME
+     * user-content host as a generated image, and its source file is 512px
+     * square, so the address rule and the file-size rule both say "content".
+     * It is drawn at 40px, which is the only thing that distinguishes it.
+     *
+     * This page is why the button used to appear where it had no business
+     * being. Nothing here may get a button.
+     */
+    storeBody: `
+      <header>
+        <img id="avatar" src="/avatar/user.png" width="32" height="32" alt="Profile">
+      </header>
+      <main>
+        <h1>GPTs</h1>
+        <div class="store">
+          <a class="card" href="/g/g-aaa">
+            <img id="gpt-icon-1" src="/img?id=gpt-icon" width="40" height="40" alt="Image Helper">
+            <span>Image Helper</span>
+          </a>
+          <a class="card" href="/g/g-bbb">
+            <img id="gpt-icon-2" src="/img?id=gpt-icon" width="40" height="40" alt="Logo Maker">
+            <span>Logo Maker</span>
+          </a>
+        </div>
+      </main>`,
     body: `
       <header>
         <img id="avatar" src="/avatar/user.png" width="32" height="32" alt="Profile">
@@ -101,7 +129,33 @@ export const PLATFORM_PAGES = {
   },
 };
 
-export function pageHtml(platform) {
+/**
+ * Just the inside of the store page's <main>, for the in-app navigation test.
+ *
+ * Taken from the page above rather than written out again, so the markup the
+ * app "navigates to" is always the same markup the server would serve.
+ */
+export function chatgptStoreMain() {
+  const match = /<main>([\s\S]*)<\/main>/.exec(PLATFORM_PAGES.chatgpt.storeBody);
+  if (!match) throw new Error('the ChatGPT store fixture no longer has a <main>');
+  return match[1];
+}
+
+/**
+ * Which body to serve for a given address.
+ *
+ * The platform pages are single-page apps, so one host answers for several
+ * different sections. ChatGPT is the one that matters here: its store pages
+ * must not be the conversation page wearing a different address, or the test
+ * would prove nothing about telling them apart.
+ */
+export function bodyForPath(platform, pathname = '/') {
+  const page = PLATFORM_PAGES[platform];
+  if (platform === 'chatgpt' && /^\/(gpts|g\/[^/]+$)/.test(pathname)) return page.storeBody;
+  return page.body;
+}
+
+export function pageHtml(platform, pathname = '/') {
   const page = PLATFORM_PAGES[platform];
   return `<!doctype html>
 <html lang="en" class="dark">
@@ -115,9 +169,13 @@ export function pageHtml(platform) {
     background:#303030; border-top:1px solid #444; display:flex;
     align-items:center; justify-content:center; z-index:5; }
   #composer input { width:60%; padding:14px; border-radius:24px; border:0; }
+  .store { display:flex; gap:16px; flex-wrap:wrap; }
+  .card { display:flex; align-items:center; gap:10px; padding:12px;
+    background:#303030; border-radius:12px; color:inherit; text-decoration:none; }
+  .card img { width:40px; height:40px; border-radius:8px; display:block; }
 </style></head>
 <body>
-  ${page.body}
+  ${bodyForPath(platform, pathname)}
   <div id="composer"><input placeholder="Ask something"></div>
 </body></html>`;
 }

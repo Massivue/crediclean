@@ -9,6 +9,7 @@
 
 import { loadSettings, saveSettings } from '../shared/settings.js';
 import { ADAPTERS, adapterForHost } from '../platforms/index.js';
+import { routeIsSupported } from '../content/route-watcher.js';
 
 const fields = {
   enabled: document.getElementById('setting-enabled'),
@@ -30,8 +31,18 @@ function flashSaved() {
   }, 1400);
 }
 
-/** Which supported platform is the active tab on, if any? */
-async function currentPlatform() {
+/**
+ * Where is the active tab, as far as CrediClean is concerned?
+ *
+ * Returns the platform AND whether this particular page of it is one the
+ * extension runs on. The two are different: ChatGPT's store and settings
+ * pages are still ChatGPT, but CrediClean is not active there, and saying
+ * "Active on ChatGPT" on a page where no button will ever appear would be
+ * telling the user something untrue.
+ *
+ * @returns {{platform: object|null, onSupportedRoute: boolean}}
+ */
+async function currentLocation() {
   try {
     /*
      * Deliberately NOT requesting the "tabs" permission. tabs.query works
@@ -40,30 +51,36 @@ async function currentPlatform() {
      * other site reads as undefined, which is the right answer here.
      */
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.url) return null;
-    const { hostname, protocol } = new URL(tab.url);
-    if (protocol !== 'https:') return null;
-    return adapterForHost(hostname);
+    if (!tab || !tab.url) return { platform: null, onSupportedRoute: false };
+    const url = new URL(tab.url);
+    if (url.protocol !== 'https:') return { platform: null, onSupportedRoute: false };
+    const platform = adapterForHost(url.hostname);
+    if (!platform) return { platform: null, onSupportedRoute: false };
+    return { platform, onSupportedRoute: routeIsSupported(platform, url) };
   } catch {
-    return null;
+    return { platform: null, onSupportedRoute: false };
   }
 }
 
-function describeStatus(settings, platform) {
-  if (!settings.enabled) {
+function describeStatus(settings, where) {
+  const { platform, onSupportedRoute } = where;
+  const off = (text) => {
     statusDot.classList.remove('status__dot--on');
-    statusText.textContent = 'Turned off';
-    return;
-  }
-  if (platform) {
-    statusDot.classList.add('status__dot--on');
-    statusText.textContent = settings.showImageButtons
-      ? `Active on ${platform.name}`
-      : `Active on ${platform.name}, buttons hidden`;
-    return;
-  }
-  statusDot.classList.remove('status__dot--on');
-  statusText.textContent = 'Open one of the sites below';
+    statusText.textContent = text;
+  };
+
+  if (!settings.enabled) return off('Turned off');
+  if (!platform) return off('Open one of the sites below');
+
+  // On the right site, but on a page the extension does not run on: its store,
+  // its settings, anything that is not a conversation.
+  if (!onSupportedRoute) return off('Not active on this page');
+
+  if (!settings.showImageButtons) return off(`${platform.name}: buttons hidden`);
+
+  statusDot.classList.add('status__dot--on');
+  statusText.textContent = `Active on ${platform.name}`;
+  return undefined;
 }
 
 /** One button per supported site, with the current one highlighted. */
@@ -85,7 +102,7 @@ function renderSites(platform) {
 
 async function init() {
   const settings = await loadSettings();
-  const platform = await currentPlatform();
+  const where = await currentLocation();
 
   for (const [key, input] of Object.entries(fields)) {
     if (!input) continue;
@@ -93,12 +110,12 @@ async function init() {
     input.addEventListener('change', async () => {
       const next = await saveSettings({ [key]: input.checked });
       flashSaved();
-      describeStatus(next, platform);
+      describeStatus(next, where);
     });
   }
 
-  describeStatus(settings, platform);
-  renderSites(platform);
+  describeStatus(settings, where);
+  renderSites(where.platform);
   document.getElementById('version').textContent = `v${chrome.runtime.getManifest().version}`;
 }
 

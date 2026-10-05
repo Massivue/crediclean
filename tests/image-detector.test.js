@@ -14,10 +14,12 @@ import {
   classifyImageUrl,
   evaluateImage,
   isImageLoaded,
+  renderedSize,
   CLASSIFICATION,
   MIN_CONTENT_EDGE_PX,
 } from '../src/content/image-detector.js';
-import { chatgptAdapter } from '../src/platforms/chatgpt.js';
+import { routeIsSupported } from '../src/content/route-watcher.js';
+import { chatgptAdapter, isChatgptConversationRoute } from '../src/platforms/chatgpt.js';
 import { geminiAdapter } from '../src/platforms/gemini.js';
 import { grokAdapter } from '../src/platforms/grok.js';
 import { adapterForHost, allImageHosts, allPageHosts, supportMatrix, SUPPORT } from '../src/platforms/index.js';
@@ -27,6 +29,11 @@ function fakeImage({
   src = 'https://files.oaiusercontent.com/file-abc123',
   naturalWidth = 1024,
   naturalHeight = 1024,
+  // How big it is DRAWN. Defaults to the file's own size, which is what a
+  // picture in a conversation looks like; an interface icon sets this small
+  // and independently, because that is the pair the detector must separate.
+  clientWidth = naturalWidth,
+  clientHeight = naturalHeight,
   complete = true,
   ancestors = [],
   alt = '',
@@ -36,8 +43,8 @@ function fakeImage({
     currentSrc: src,
     naturalWidth,
     naturalHeight,
-    clientWidth: naturalWidth,
-    clientHeight: naturalHeight,
+    clientWidth,
+    clientHeight,
     complete,
     getAttribute: (name) => (name === 'src' ? src : name === 'alt' ? alt : null),
     closest: (selector) => (ancestors.includes(selector) ? { tagName: 'DIV' } : null),
@@ -139,6 +146,109 @@ test('ChatGPT: an unfamiliar host is accepted only inside a message element', ()
 
   const inside = fakeImage({ src: 'https://example.com/picture.png', ancestors: ['[data-message-author-role]'] });
   assert.equal(evaluateImage(inside, chatgptAdapter).eligible, true);
+});
+
+/* ---------------------------------------------------------------- */
+/* The GPT-store bug: large file, drawn tiny                          */
+/* ---------------------------------------------------------------- */
+
+/*
+ * These cover the defect that put CrediClean's button on ChatGPT's GPT and
+ * plugin pages. Those pages show each GPT's icon, served from the SAME
+ * user-content host as a generated image, from a source file big enough to
+ * pass a file-size check. Every signal except one said "content". The one
+ * that works is how big it is actually drawn.
+ */
+
+test('ChatGPT: a large file drawn at icon size is rejected', () => {
+  const storeIcon = fakeImage({
+    src: 'https://files.oaiusercontent.com/file-gpt-icon',
+    naturalWidth: 512,
+    naturalHeight: 512,
+    clientWidth: 40,
+    clientHeight: 40,
+  });
+  assert.equal(evaluateImage(storeIcon, chatgptAdapter).reason, 'rendered-too-small');
+  assert.equal(evaluateImage(storeIcon, chatgptAdapter).eligible, false);
+});
+
+test('ChatGPT: the same file drawn full size in a conversation is eligible', () => {
+  const inConversation = fakeImage({
+    src: 'https://files.oaiusercontent.com/file-gpt-icon',
+    naturalWidth: 512,
+    naturalHeight: 512,
+    clientWidth: 512,
+    clientHeight: 512,
+  });
+  assert.equal(evaluateImage(inConversation, chatgptAdapter).eligible, true,
+    'the drawn-size rule must not reject genuine generated images');
+});
+
+test('an image not laid out yet is deferred, not rejected', () => {
+  const notLaidOut = fakeImage({ clientWidth: 0, clientHeight: 0 });
+  assert.equal(evaluateImage(notLaidOut, chatgptAdapter).reason, 'not-rendered',
+    'zero means "cannot measure yet", which must stay distinct from "too small"');
+});
+
+test('renderedSize prefers the measured box and falls back to layout properties', () => {
+  assert.deepEqual(renderedSize({ clientWidth: 120, clientHeight: 80 }), { width: 120, height: 80 });
+  assert.deepEqual(
+    renderedSize({
+      clientWidth: 10,
+      clientHeight: 10,
+      getBoundingClientRect: () => ({ width: 300, height: 200 }),
+    }),
+    { width: 300, height: 200 },
+  );
+  // A rect of zero means not laid out; the layout properties are the fallback.
+  assert.deepEqual(
+    renderedSize({ clientWidth: 44, clientHeight: 44, getBoundingClientRect: () => ({ width: 0, height: 0 }) }),
+    { width: 44, height: 44 },
+  );
+  assert.deepEqual(renderedSize(null), { width: 0, height: 0 });
+});
+
+/* ---------------------------------------------------------------- */
+/* Which pages of a site the extension runs on                       */
+/* ---------------------------------------------------------------- */
+
+test('ChatGPT: conversations are supported routes', () => {
+  for (const pathname of ['/', '/c/abc-123', '/g/g-xyz/c/abc-123', '/share/abc-123']) {
+    assert.equal(isChatgptConversationRoute({ pathname, hash: '' }), true, pathname);
+  }
+});
+
+test('ChatGPT: store, settings and other sections are not', () => {
+  for (const pathname of ['/gpts', '/gpts/mine', '/gpts/editor', '/g/g-xyz', '/codex', '/admin', '/library', '/pricing']) {
+    assert.equal(isChatgptConversationRoute({ pathname, hash: '' }), false, pathname);
+  }
+});
+
+test('ChatGPT: the settings panel over a conversation is not a conversation', () => {
+  assert.equal(isChatgptConversationRoute({ pathname: '/c/abc', hash: '#settings' }), false);
+  assert.equal(isChatgptConversationRoute({ pathname: '/', hash: '#settings' }), false);
+});
+
+test('ChatGPT: an unknown new section is excluded by default', () => {
+  // The allow-list is deliberate: a section OpenAI adds later must not
+  // inherit the buttons just because nobody updated a block-list.
+  assert.equal(isChatgptConversationRoute({ pathname: '/something-new-in-2027', hash: '' }), false);
+});
+
+test('a platform with no route rule runs everywhere on its site', () => {
+  assert.equal(routeIsSupported(geminiAdapter, { pathname: '/app/anything', hash: '' }), true);
+  assert.equal(routeIsSupported(grokAdapter, { pathname: '/whatever', hash: '' }), true);
+});
+
+test('routeIsSupported applies the adapter rule, and refuses no adapter at all', () => {
+  assert.equal(routeIsSupported(chatgptAdapter, { pathname: '/c/abc', hash: '' }), true);
+  assert.equal(routeIsSupported(chatgptAdapter, { pathname: '/gpts', hash: '' }), false);
+  assert.equal(routeIsSupported(null, { pathname: '/c/abc', hash: '' }), false);
+});
+
+test('a route rule that throws leaves the extension active rather than dead', () => {
+  const broken = { isSupportedRoute: () => { throw new Error('bad rule'); } };
+  assert.equal(routeIsSupported(broken, { pathname: '/c/abc', hash: '' }), true);
 });
 
 /* ---------------------------------------------------------------- */

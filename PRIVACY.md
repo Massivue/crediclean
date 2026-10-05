@@ -1,6 +1,6 @@
 # CrediClean privacy notice
 
-Last updated: 5 October 2026. Applies to version 0.4.0.
+Last updated: 5 October 2026. Applies to version 0.5.0.
 
 ## The short version
 

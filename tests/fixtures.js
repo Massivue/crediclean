@@ -120,7 +120,10 @@ function buildClaimCbor(generator) {
 /* PNG                                                                 */
 /* ------------------------------------------------------------------ */
 
-function pngChunk(type, data) {
+/** Build one PNG chunk, length + type + data + CRC. Exported so the store
+ * screenshot script can inject a real manifest chunk into a real picture
+ * rather than carrying a second copy of the CRC logic. */
+export function pngChunk(type, data) {
   const typeBytes = ascii(type);
   const body = concat([typeBytes, data]);
   return concat([u32be(data.length), body, u32be(crc32(body))]);

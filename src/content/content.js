@@ -31,6 +31,7 @@
       import(moduleUrl('shared/settings.js')),
       import(moduleUrl('platforms/index.js')),
       import(moduleUrl('content/observed-sources.js')),
+      import(moduleUrl('content/route-watcher.js')),
     ]);
   } catch (error) {
     // Without the modules there is nothing we can do, but we must not break the
@@ -50,6 +51,7 @@
     settingsModule,
     platforms,
     observedSources,
+    routeModule,
   ] = modules;
 
   /*
@@ -70,6 +72,7 @@
   const overlay = new overlayModule.Overlay();
   let watcher = null;
   let buttons = null;
+  let routeWatcher = null;
 
   /* --------------------------------------------------------------------- */
   /* The main action: read the image, inspect it, offer what we can do      */
@@ -298,7 +301,15 @@
   /* Start, stop, and react to settings changes                             */
   /* --------------------------------------------------------------------- */
 
-  function start() {
+  /**
+   * Mount: start watching the page and drawing controls.
+   *
+   * Everything the extension puts on the page is created here and destroyed in
+   * `unmount`, so leaving a conversation genuinely tears the extension down
+   * rather than hiding it. Nothing is left observing the DOM, and no control
+   * can survive into a page where it does not belong.
+   */
+  function mount() {
     if (watcher) return;
     overlay.mount();
     buttons = new ui.ButtonManager({ overlay, onInspect: handleInspect });
@@ -309,24 +320,49 @@
     watcher.start();
   }
 
-  function stop() {
+  /** Unmount: stop observing and remove every control we added. */
+  function unmount() {
     if (watcher) {
       watcher.stop();
       watcher = null;
     }
     if (buttons) {
+      // Removes the buttons, closes any open panel, and clears the marker
+      // attribute from the images so they are reconsidered cleanly on return.
       buttons.detachAll();
       buttons = null;
     }
     overlay.unmount();
   }
 
+  /**
+   * The single decision: should the extension be running right now?
+   *
+   * Two things can change the answer, and both route through here so the
+   * mounted state can never disagree with them: the user's settings, and which
+   * page of the site they are on.
+   */
+  function sync() {
+    const wanted =
+      settings.enabled && settings.showImageButtons && routeModule.routeIsSupported(adapter);
+    if (wanted) mount();
+    else unmount();
+  }
+
   function applySettings(next) {
     settings = next;
-    if (settings.enabled && settings.showImageButtons) start();
-    else stop();
+    sync();
   }
 
   settingsModule.onSettingsChanged(applySettings);
+
+  /*
+   * These sites are single-page apps: moving from a conversation to a store or
+   * settings page changes the address without loading a document, so there is
+   * no second chance to decide. Watch for it and re-decide each time.
+   */
+  routeWatcher = new routeModule.RouteWatcher(() => sync());
+  routeWatcher.start();
+
   applySettings(settings);
 })();

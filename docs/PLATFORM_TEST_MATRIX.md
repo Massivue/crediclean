@@ -1,6 +1,6 @@
 # Platform test matrix
 
-CrediClean 0.4.0, 5 October 2026.
+CrediClean 0.5.0, 5 October 2026.
 
 Key: **PASS** tested and working. **BLOCKED** could not be tested here.
 **NOT CONFIRMED** unknown. **NOT SUPPORTED** known not to work.
@@ -30,7 +30,7 @@ test, the product reported Grok's status as unknown rather than guessing.
 ## What was actually run
 
 Every number below was produced by re-running the suite on the shipping
-0.4.0 tree, not copied from an earlier run.
+0.5.0 tree, not copied from an earlier run.
 
 ### 1. Credential engine, against real signed files — PASS
 
@@ -46,11 +46,12 @@ C.jpg            132,518 ->    86,634 bytes   differing pixels: 0
 This is the part shared by all three platforms, and it is the best-evidenced
 part of the product.
 
-### 2. Unit tests — 116 PASS, 0 fail
+### 2. Unit tests — 127 PASS, 0 fail
 
 `npm test`. Includes per-platform address classification for all three
-adapters, registry routing, the container parsers, and the removal and
-verification logic.
+adapters, registry routing, the container parsers, the removal and
+verification logic, and the rules deciding which pages of a site the extension
+runs on and which images are large enough on screen to be content.
 
 ### 3. ChatGPT browser suite — 70 PASS, 0 fail
 
@@ -58,7 +59,7 @@ verification logic.
 extension loaded. Covers detection, the panel, one-click removal, download,
 positioning, both themes, the popup and the service worker.
 
-### 4. Platform browser suite — 48 PASS, 0 fail
+### 4. Platform browser suite — 66 PASS, 0 fail
 
 `npm run test:platforms`. The real extension in a real Chromium, against a
 reconstructed page per platform served from that platform's real hostname.
@@ -87,6 +88,49 @@ is the case the product must not fake, so the test asserts the extension says
 so plainly and offers nothing. Grok's real images do carry credentials, which
 the live test confirmed separately.
 
+### 4b. Page scope and in-app navigation, ChatGPT — 11 PASS, 0 fail
+
+Part of the same suite. These cover the reported defect where the button
+appeared on ChatGPT's GPT and plugin pages and then survived the trip back to
+a conversation.
+
+| Check | Result |
+|---|---|
+| A conversation gets exactly one button | PASS |
+| The GPT/plugins page gets none, loaded directly | PASS |
+| No store icon is even marked as handled | PASS |
+| `pushState` away from a conversation removes the buttons | PASS |
+| Nothing else we drew is left behind | PASS |
+| `pushState` back brings the button back | PASS |
+| The browser Back button is handled too | PASS |
+| Opening settings over a conversation removes them | PASS |
+| Closing settings brings them back | PASS |
+| The panel still works after all that navigating | PASS |
+| No page errors | PASS |
+
+The store page in this suite is built to be the hard case: each GPT icon is a
+512px file served from the same user-content host as a generated image, and is
+drawn at 40px. Every rule except the drawn-size rule says "content".
+
+**What this settles, and it is worth stating because the obvious approach is
+wrong:** a content script cannot catch the page's own `history.pushState` by
+patching it, because it runs in a separate JavaScript context and would only
+be patching its own copy. These tests drive real `pushState` calls from the
+page and show the extension reacting, which proves the mechanism that replaced
+it actually works.
+
+### 4c. The CC button — 7 PASS, 0 fail
+
+| Check | Result |
+|---|---|
+| Small enough to sit on a picture (≤40px) | PASS |
+| Still a comfortable click target (≥24px) | PASS |
+| Square, so it reads as an icon | PASS |
+| Shows the CC mark and no caption | PASS |
+| Still tells a screen reader what it does | PASS |
+| The tooltip is hidden until hovered | PASS |
+| Hovering reveals "Inspect credentials" | PASS |
+
 ### 5. Manifest verification — PASS
 
 `npm run verify` regenerates the host list from `src/platforms/` and fails if
@@ -106,6 +150,7 @@ the manifest and the adapters disagree. Current result: 10 host permissions,
 | WebP chunk identifier | **PASS** | Confirmed against the C2PA reference implementation's source |
 | WebP removal against a real signed file | **BLOCKED** | No C2PA-signed WebP sample exists publicly |
 | SynthID removal | **NOT SUPPORTED** | Deliberate. It is a pixel watermark, not metadata |
+| ChatGPT's real route names | **NOT CONFIRMED FROM HERE** | The conversation and store addresses come from knowledge of the live site, not from a capture made in this environment. If OpenAI renames a section, the buttons stop appearing there until the list in `src/platforms/chatgpt.js` is updated |
 
 ## The honest summary
 

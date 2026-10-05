@@ -23,7 +23,7 @@ import path from 'node:path';
 import https from 'node:https';
 import { fileURLToPath } from 'node:url';
 
-import { pageHtml, PLATFORM_PAGES } from './platform-pages.js';
+import { pageHtml, chatgptStoreMain, PLATFORM_PAGES } from './platform-pages.js';
 import { buildPng, buildC2paManifestStore } from '../fixtures.js';
 import { inspectImage, STATUS } from '../../src/processing/metadata-inspector.js';
 import { ADAPTERS } from '../../src/platforms/index.js';
@@ -72,6 +72,15 @@ const geminiOriginal = buildPng({
   xmp: 'provenance',
 });
 const avatar = buildPng({ width: 32, height: 32 });
+/*
+ * A custom GPT's icon from ChatGPT's store pages. Deliberately a LARGE file:
+ * that is what made it indistinguishable from a generated image on every
+ * signal except how big it is drawn.
+ */
+const gptIcon = buildPng({ width: 512, height: 512 });
+
+/** What the app swaps into <main> when it navigates to the store page. */
+const STORE_MARKUP = chatgptStoreMain();
 
 /** One HTTPS server answering for every platform host. */
 function startServer() {
@@ -151,7 +160,7 @@ function startServer() {
 
       if (url.pathname === '/img') {
         const id = url.searchParams.get('id');
-        const bytes = id === 'file-signed' ? signed : unsigned;
+        const bytes = id === 'file-signed' ? signed : id === 'gpt-icon' ? gptIcon : unsigned;
         response.writeHead(200, { 'content-type': 'image/png', 'content-length': bytes.length });
         response.end(Buffer.from(bytes));
         return;
@@ -164,7 +173,7 @@ function startServer() {
       }
       if (platform) {
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        response.end(pageHtml(platform));
+        response.end(pageHtml(platform, url.pathname));
         return;
       }
       response.writeHead(404);
@@ -302,6 +311,161 @@ async function testPlatform(context, adapter) {
   }
 }
 
+/**
+ * ChatGPT only: the extension must mount in a conversation and nowhere else,
+ * and must follow the app as it moves between the two without a page load.
+ *
+ * This reproduces the reported defect exactly. The buttons appeared on the GPT
+ * / plugin pages, and once they had, they survived the trip back to a
+ * conversation. Two separate causes, so two separate things to prove here.
+ */
+async function testChatgptRouting(context) {
+  console.log('\n--- ChatGPT: page scope and in-app navigation ---');
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(String(error)));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+
+  const badges = () => page.locator('.cc-badge').count();
+  /* Long enough for the detector's debounce and the route poll to both run. */
+  const settle = () => page.waitForTimeout(1200);
+
+  try {
+    /* 1. A conversation. The button belongs here. */
+    await page.goto('https://chatgpt.com/c/abc-123', { waitUntil: 'load' });
+    await page.waitForSelector('.cc-badge', { timeout: 15000 });
+    check('routing: a conversation gets exactly one button', (await badges()) === 1);
+
+    /* 2. The store page, loaded directly. Nothing here is a generated image,
+          even though each icon is a large file from the content host. */
+    await page.goto('https://chatgpt.com/gpts', { waitUntil: 'load' });
+    await settle();
+    check('routing: the GPT/plugins page gets NO buttons', (await badges()) === 0,
+      `found ${await badges()}`);
+    check('routing: no store icon was marked as handled',
+      (await page.locator('[data-crediclean-handled]').count()) === 0);
+
+    /* 3. Now the part that needs the route watcher: the same journey made
+          INSIDE the app, with pushState and no document load. */
+    await page.goto('https://chatgpt.com/c/abc-123', { waitUntil: 'load' });
+    await page.waitForSelector('.cc-badge', { timeout: 15000 });
+    const conversationMarkup = await page.evaluate(() => document.querySelector('main').innerHTML);
+
+    await page.evaluate((storeMarkup) => {
+      history.pushState({}, '', '/gpts');
+      document.querySelector('main').innerHTML = storeMarkup;
+    }, STORE_MARKUP);
+    await settle();
+    check('routing: pushState away from a conversation removes the buttons',
+      (await badges()) === 0, `found ${await badges()}`);
+    check('routing: and closes anything else we drew',
+      (await page.locator('.cc-panel').count()) === 0);
+
+    /* 4. Back again, the same way. */
+    await page.evaluate((markup) => {
+      history.pushState({}, '', '/c/abc-123');
+      document.querySelector('main').innerHTML = markup;
+    }, conversationMarkup);
+    await page.waitForSelector('.cc-badge', { timeout: 15000 });
+    check('routing: returning to the conversation brings the button back',
+      (await badges()) === 1, `found ${await badges()}`);
+
+    /* 5. The browser Back button, which is a different mechanism again. */
+    await page.evaluate((storeMarkup) => {
+      history.pushState({}, '', '/gpts');
+      document.querySelector('main').innerHTML = storeMarkup;
+    }, STORE_MARKUP);
+    await settle();
+    await page.goBack();
+    await page.evaluate((markup) => {
+      document.querySelector('main').innerHTML = markup;
+    }, conversationMarkup);
+    await page.waitForSelector('.cc-badge', { timeout: 15000 });
+    check('routing: the browser Back button is handled too', (await badges()) === 1);
+
+    /* 6. Settings opens over the conversation without changing the path. */
+    await page.evaluate(() => { location.hash = '#settings'; });
+    await settle();
+    check('routing: opening settings over a conversation removes the buttons',
+      (await badges()) === 0, `found ${await badges()}`);
+
+    await page.evaluate(() => { location.hash = ''; });
+    await page.waitForSelector('.cc-badge', { timeout: 15000 });
+    check('routing: closing settings brings them back', (await badges()) === 1);
+
+    /* 7. The button still does its job after all that moving about. */
+    await page.locator('.cc-badge').first().click();
+    await page.waitForSelector('.cc-panel', { timeout: 15000 });
+    const panelText = await page.locator('.cc-panel').innerText();
+    check('routing: the panel still works after navigating back and forth',
+      /Content Credentials found/i.test(panelText), panelText.slice(0, 120));
+
+    const realErrors = errors.filter((text) => !/ERR_CERT/i.test(text));
+    check('routing: no page errors', realErrors.length === 0, realErrors.join(' | '));
+  } finally {
+    await page.close();
+  }
+}
+
+/**
+ * The CC control itself: icon only, with the explanation on hover.
+ */
+async function testBadgeAppearance(context) {
+  console.log('\n--- The CC button ---');
+  const page = await context.newPage();
+  try {
+    await page.goto('https://chatgpt.com/c/abc-123', { waitUntil: 'load' });
+    await page.waitForSelector('.cc-badge', { timeout: 15000 });
+    const badge = page.locator('.cc-badge').first();
+
+    const box = await badge.boundingBox();
+    check('button: small enough to sit on a picture', box.width <= 40 && box.height <= 40,
+      `${Math.round(box.width)}x${Math.round(box.height)}`);
+    check('button: still a comfortable click target', box.width >= 24 && box.height >= 24,
+      `${Math.round(box.width)}x${Math.round(box.height)}`);
+    check('button: roughly square, so it reads as an icon',
+      Math.abs(box.width - box.height) <= 2, `${box.width}x${box.height}`);
+
+    /*
+     * What a user actually SEES on the button.
+     *
+     * Deliberately not innerText: that counts text which is only
+     * `visibility: hidden`, so the tooltip and the screen-reader label would
+     * both show up and the check would pass or fail for the wrong reason.
+     */
+    const visibleText = await badge.evaluate((node) => {
+      let text = '';
+      for (const child of node.querySelectorAll('*')) {
+        const style = getComputedStyle(child);
+        if (style.display === 'none' || style.visibility === 'hidden') continue;
+        if (Number(style.opacity) === 0) continue;
+        // Clipped to a single pixel: present for screen readers, not drawn.
+        const rect = child.getBoundingClientRect();
+        if (rect.width <= 1 || rect.height <= 1) continue;
+        text += child.textContent;
+      }
+      return text.trim();
+    });
+    check('button: shows the CC mark and no caption', visibleText === 'CC',
+      JSON.stringify(visibleText));
+    check('button: still tells a screen reader what it does',
+      /inspect credentials/i.test(await badge.getAttribute('aria-label') || ''));
+
+    const tip = badge.locator('.cc-badge__tip');
+    check('button: the tooltip is hidden until hovered',
+      (await tip.evaluate((node) => getComputedStyle(node).visibility)) === 'hidden');
+    await badge.hover();
+    await page.waitForTimeout(250);
+    check('button: hovering reveals "Inspect credentials"',
+      (await tip.evaluate((node) => getComputedStyle(node).visibility)) === 'visible' &&
+        (await tip.innerText()).trim() === 'Inspect credentials');
+  } finally {
+    await page.close();
+  }
+}
+
 async function main() {
   const server = await startServer();
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'crediclean-platforms-'));
@@ -342,6 +506,10 @@ async function main() {
       }
       await testPlatform(context, adapter);
     }
+
+    // ChatGPT-specific: which pages the extension runs on, and the control.
+    await testChatgptRouting(context);
+    await testBadgeAppearance(context);
   } finally {
     if (context) await context.close();
     server.close();

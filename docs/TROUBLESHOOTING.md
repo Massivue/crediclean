@@ -140,7 +140,7 @@ outside. The extension can tell them apart for you.
 ### Read the diagnosis
 
 1. On the page with the image, press **F12** and choose the **Console** tab.
-2. Click **Inspect credentials** on the image.
+2. Click the **CC** button on the image.
 3. Look for a collapsed line reading
    `[CrediClean] No credentials found on <platform>. Click to see why.`
 4. Click it to expand.

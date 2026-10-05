@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CrediClean",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Inspect and remove supported Content Credentials from AI-generated images in ChatGPT, Gemini and Grok.",
   "minimum_chrome_version": "111",
   "permissions": [
@@ -90,7 +90,8 @@
         "src/platforms/chatgpt.js",
         "src/platforms/gemini.js",
         "src/platforms/grok.js",
-        "src/content/observed-sources.js"
+        "src/content/observed-sources.js",
+        "src/content/route-watcher.js"
       ],
       "matches": [
         "https://chat.openai.com/*",

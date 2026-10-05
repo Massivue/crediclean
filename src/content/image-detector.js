@@ -91,6 +91,30 @@ export function isImageLoaded(img) {
 }
 
 /**
+ * How big is this image actually drawn on screen, in CSS pixels?
+ *
+ * Returns zeroes when the image is not laid out yet, which is a different
+ * answer from "small" and is treated differently by the caller.
+ *
+ * @param {HTMLImageElement|object} img
+ * @returns {{width: number, height: number}}
+ */
+export function renderedSize(img) {
+  if (!img) return { width: 0, height: 0 };
+  if (typeof img.getBoundingClientRect === 'function') {
+    try {
+      const rect = img.getBoundingClientRect();
+      if (rect && (rect.width > 0 || rect.height > 0)) {
+        return { width: rect.width, height: rect.height };
+      }
+    } catch {
+      // fall through to the layout properties below
+    }
+  }
+  return { width: img.clientWidth || 0, height: img.clientHeight || 0 };
+}
+
+/**
  * Decide whether this image is a generated/content image worth offering an
  * action on.
  *
@@ -120,12 +144,34 @@ export function evaluateImage(img, adapter = activeAdapter) {
 
   if (!isImageLoaded(img)) return { eligible: false, reason: 'not-loaded', url };
 
-  // Size check. Use the natural size, falling back to the rendered size, so a
-  // large image that is currently displayed small still qualifies.
-  const width = img.naturalWidth || img.clientWidth || 0;
-  const height = img.naturalHeight || img.clientHeight || 0;
+  // The file itself has to be big enough to be a picture rather than an icon.
+  const width = img.naturalWidth || 0;
+  const height = img.naturalHeight || 0;
   if (width < adapter.minEdgePx || height < adapter.minEdgePx) {
     return { eligible: false, reason: 'too-small', url };
+  }
+
+  /*
+   * And it has to be DRAWN big enough.
+   *
+   * This second check is what keeps the button off a site's own interface
+   * pictures. A custom GPT's icon on ChatGPT's store pages comes from the same
+   * user-content host as a generated image and its source file is large, so
+   * every other signal here says "content". The one thing that separates them
+   * is that the icon is drawn at roughly 40px while a generated image fills
+   * the message.
+   *
+   * A size of zero means "not laid out yet", not "tiny": that happens while a
+   * page is still building, or inside a collapsed container. Such an image is
+   * skipped for now rather than rejected, and the watcher reconsiders it on
+   * the next pass, once it can be measured and in fact clicked.
+   */
+  const drawn = renderedSize(img);
+  if (drawn.width <= 0 || drawn.height <= 0) {
+    return { eligible: false, reason: 'not-rendered', url };
+  }
+  if (drawn.width < adapter.minRenderedEdgePx || drawn.height < adapter.minRenderedEdgePx) {
+    return { eligible: false, reason: 'rendered-too-small', url };
   }
 
   // An unknown host is accepted only if it is inside a recognised reply
@@ -251,7 +297,14 @@ export class ImageWatcher {
       img.addEventListener('error', rescan, { once: true });
     }
 
-    const entries = findContentImages(document);
-    if (entries.length > 0) this.onImages(entries);
+    /*
+     * Always report, even when the answer is "none".
+     *
+     * This used to stay silent on an empty result, which looked harmless and
+     * was the reason buttons survived a move to a page with no eligible
+     * images: with nothing reported, nothing ever ran the cleanup that removes
+     * buttons whose image has gone. The empty call is what prunes them.
+     */
+    this.onImages(findContentImages(document));
   }
 }
