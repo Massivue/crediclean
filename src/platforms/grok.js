@@ -23,7 +23,7 @@
  * nothing to remove. That is the correct outcome, not a bug.
  *
  * If you confirm Grok's behaviour on a real file, update the support block
- * below and docs/FOUR_PLATFORM_SUPPORT.md together.
+ * below and docs/PLATFORM_SUPPORT.md together.
  */
 
 import { defineAdapter, SUPPORT } from './base.js';

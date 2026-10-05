@@ -39,9 +39,8 @@ function isAllowedUrl(rawUrl) {
 async function fetchImageBytes(rawUrl) {
   if (!isAllowedUrl(rawUrl)) {
     /*
-     * The image-hosting domains for Gemini, Copilot and Grok are not
-     * documented publicly, so some of the entries in the registry are
-     * inferences. When one of them is wrong this is where it shows up, so log
+     * The image-hosting domains for Gemini and Grok are not documented
+     * publicly, so some of the entries in the registry are inferences. When one of them is wrong this is where it shows up, so log
      * the host that was actually refused: that is the single piece of
      * information needed to correct the adapter.
      */

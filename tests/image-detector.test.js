@@ -4,7 +4,7 @@
  * These exercise the decision logic with plain stand-in objects rather than a
  * real browser. That covers the rules, but it CANNOT prove the selectors match
  * any real page. Only ChatGPT has been confirmed on the live site. See
- * docs/FOUR_PLATFORM_TEST_MATRIX.md.
+ * docs/PLATFORM_TEST_MATRIX.md.
  */
 
 import test from 'node:test';
@@ -19,7 +19,6 @@ import {
 } from '../src/content/image-detector.js';
 import { chatgptAdapter } from '../src/platforms/chatgpt.js';
 import { geminiAdapter } from '../src/platforms/gemini.js';
-import { copilotAdapter } from '../src/platforms/copilot.js';
 import { grokAdapter } from '../src/platforms/grok.js';
 import { adapterForHost, allImageHosts, allPageHosts, supportMatrix, SUPPORT } from '../src/platforms/index.js';
 
@@ -53,7 +52,6 @@ test('each platform host routes to its own adapter', () => {
   assert.equal(adapterForHost('chatgpt.com').id, 'chatgpt');
   assert.equal(adapterForHost('chat.openai.com').id, 'chatgpt');
   assert.equal(adapterForHost('gemini.google.com').id, 'gemini');
-  assert.equal(adapterForHost('copilot.microsoft.com').id, 'copilot');
   assert.equal(adapterForHost('grok.com').id, 'grok');
   assert.equal(adapterForHost('x.com').id, 'grok');
 });
@@ -86,7 +84,6 @@ test('Grok credential support is recorded as unknown, not as supported', () => {
   // ChatGPT is the only platform confirmed on a live site.
   assert.equal(matrix.chatgpt.c2paDetection, SUPPORT.VERIFIED);
   assert.equal(matrix.gemini.c2paDetection, SUPPORT.UNVERIFIED);
-  assert.equal(matrix.copilot.c2paDetection, SUPPORT.UNVERIFIED);
 });
 
 /* ---------------------------------------------------------------- */
@@ -173,26 +170,7 @@ test('Gemini records SynthID as provenance it cannot remove', () => {
   assert.match(geminiAdapter.knownUnremovableProvenance.join(' '), /SynthID/);
 });
 
-/* ---------------------------------------------------------------- */
-/* Copilot                                                           */
-/* ---------------------------------------------------------------- */
-
-test('Copilot: the Bing image CDN is treated as content', () => {
-  assert.equal(classifyImageUrl('https://th.bing.com/th/id/OIG.abc123', copilotAdapter), CLASSIFICATION.CONTENT);
-});
-
-test('Copilot: tracking and interface hosts are excluded', () => {
-  assert.equal(classifyImageUrl('https://r.bing.com/rp/tracking.png', copilotAdapter), CLASSIFICATION.INTERFACE);
-  assert.equal(classifyImageUrl('https://c.bing.com/c.gif', copilotAdapter), CLASSIFICATION.INTERFACE);
-});
-
-test('Copilot: an unknown host is accepted inside a reply', () => {
-  const src = 'https://designer.microsoft.com/generated/xyz.png';
-  assert.equal(evaluateImage(fakeImage({ src }), copilotAdapter).reason, 'unknown-host-outside-message');
-  assert.equal(evaluateImage(fakeImage({ src, ancestors: ['[data-content="ai-message"]'] }), copilotAdapter).eligible, true);
-});
-
-/* ---------------------------------------------------------------- */
+/* ----------------------------------------------------------------- */
 /* Grok                                                              */
 /* ---------------------------------------------------------------- */
 
@@ -224,7 +202,7 @@ test('no adapter accepts an image when none is supplied', () => {
 });
 
 test('malformed elements are handled without throwing, on every platform', () => {
-  for (const adapter of [chatgptAdapter, geminiAdapter, copilotAdapter, grokAdapter]) {
+  for (const adapter of [chatgptAdapter, geminiAdapter, grokAdapter]) {
     assert.equal(evaluateImage(null, adapter).eligible, false);
     assert.equal(evaluateImage({}, adapter).eligible, false);
     assert.equal(evaluateImage({ src: '' }, adapter).eligible, false);
@@ -232,7 +210,7 @@ test('malformed elements are handled without throwing, on every platform', () =>
 });
 
 test('every adapter excludes avatars and tiny decorative images', () => {
-  for (const adapter of [chatgptAdapter, geminiAdapter, copilotAdapter, grokAdapter]) {
+  for (const adapter of [chatgptAdapter, geminiAdapter, grokAdapter]) {
     assert.equal(classifyImageUrl('https://example.com/avatar/me.png', adapter), CLASSIFICATION.INTERFACE,
       `${adapter.id} should exclude avatars`);
     assert.equal(classifyImageUrl('https://example.com/favicon.ico', adapter), CLASSIFICATION.INTERFACE,
@@ -243,7 +221,7 @@ test('every adapter excludes avatars and tiny decorative images', () => {
 });
 
 test('every adapter has the fields the detector relies on', () => {
-  for (const adapter of [chatgptAdapter, geminiAdapter, copilotAdapter, grokAdapter]) {
+  for (const adapter of [chatgptAdapter, geminiAdapter, grokAdapter]) {
     assert.ok(adapter.id && adapter.name, 'needs an id and name');
     assert.ok(adapter.hosts.length > 0, `${adapter.id} needs hosts`);
     assert.ok(adapter.imageHosts.length > 0, `${adapter.id} needs image hosts`);

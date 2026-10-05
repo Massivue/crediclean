@@ -1,6 +1,6 @@
 # CrediClean privacy notice
 
-Last updated: 5 October 2026. Applies to version 0.2.0.
+Last updated: 5 October 2026. Applies to version 0.4.0.
 
 ## The short version
 
@@ -50,16 +50,13 @@ Uninstalling the extension removes them.
 | `storage` | To remember the three settings above. |
 | `chatgpt.com`, `chat.openai.com` | ChatGPT pages |
 | `gemini.google.com` | Gemini pages |
-| `copilot.microsoft.com`, `designer.microsoft.com` | Copilot pages |
 | `grok.com`, `x.com` | Grok pages |
 | `*.oaiusercontent.com` | Where ChatGPT serves image files |
 | `*.googleusercontent.com`, `usercontent.google.com` | Where Gemini is expected to serve image files |
-| `th.bing.com`, `*.bing.net` | Where Copilot is expected to serve image files |
 | `assets.grok.com`, `pbs.twimg.com` | Where Grok is expected to serve image files |
 
 The extension asks for these specific hosts rather than whole domains. It does
-not request `<all_urls>`, nor all of `google.com`, `microsoft.com` or
-`bing.com`.
+not request `<all_urls>`, nor all of `google.com` or `x.com`.
 
 CrediClean does **not** request access to your browsing history, your cookies,
 your passwords, other websites, or your tabs in general.

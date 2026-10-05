@@ -3,9 +3,9 @@
 A Chrome extension that lets you inspect, and remove, the Content Credentials
 embedded in AI-generated images, without leaving the page.
 
-Works on **ChatGPT, Google Gemini, Microsoft Copilot and Grok**.
+Works on **ChatGPT, Google Gemini and Grok**.
 
-Version 0.2.0. Free, open source, no account, no server.
+Version 0.4.0. Free, open source, no account, no server.
 
 ---
 
@@ -15,13 +15,11 @@ Version 0.2.0. Free, open source, no account, no server.
 |---|---|
 | **ChatGPT** | **Working**, confirmed on the live site |
 | **Gemini** | **Working**, confirmed on the live site |
-| **Copilot** | Built and tested against a reconstruction, **not yet confirmed live** |
 | **Grok** | **Working**, confirmed on the live site |
 
-The credential engine is shared by all four and is verified against real signed
-files. The open question for the three unconfirmed platforms is whether the
-extension spots their images, not whether it can process them. Full detail is
-in [docs/FOUR_PLATFORM_SUPPORT.md](docs/FOUR_PLATFORM_SUPPORT.md).
+All three have been confirmed working on the live site. The credential engine
+is shared by all three and is verified against real signed files. Full detail
+is in [docs/PLATFORM_SUPPORT.md](docs/PLATFORM_SUPPORT.md).
 
 ## What it does
 
@@ -191,11 +189,11 @@ checks in the panel after every removal.
 ## Testing
 
 ```bash
-npm test                 # 112 unit tests
+npm test                 # 103 unit tests
 npm run fetch-samples    # download real C2PA-signed images
-npm test                 # now includes tests against those real files
-npm run test:e2e         # 64 ChatGPT checks in a real Chromium
-npm run test:platforms   # 59 checks across all four platforms
+npm test                 # now 116, including 13 against those real files
+npm run test:e2e         # 70 ChatGPT checks in a real Chromium
+npm run test:platforms   # 48 checks across all three platforms
 npm run verify           # check the manifest matches the code
 ```
 

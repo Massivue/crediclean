@@ -6,11 +6,12 @@
  * WHAT THIS PROVES: the platform registry routes each host to the right
  * adapter, each adapter's rules find the generated image and reject the
  * avatar, and the shared credential engine, UI and download work identically
- * on all four.
+ * on all three.
  *
- * WHAT THIS DOES NOT PROVE: that the selectors match the real Gemini, Copilot
- * or Grok. The markup is our reconstruction. Only ChatGPT has been confirmed
- * on the live site. See docs/FOUR_PLATFORM_TEST_MATRIX.md.
+ * WHAT THIS DOES NOT PROVE: that the selectors still match the real Gemini or
+ * Grok on any given day. The markup here is our reconstruction. All three
+ * platforms have been confirmed working on their live sites by hand, but these
+ * tests cannot re-check that. See docs/PLATFORM_TEST_MATRIX.md.
  *
  * Run with:  npm run test:platforms
  */

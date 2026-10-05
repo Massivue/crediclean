@@ -11,13 +11,12 @@
 import { hostMatches } from './base.js';
 import { chatgptAdapter } from './chatgpt.js';
 import { geminiAdapter } from './gemini.js';
-import { copilotAdapter } from './copilot.js';
 import { grokAdapter } from './grok.js';
 
 export { SUPPORT } from './base.js';
 
 /** Every supported platform. Order matters only for host matching. */
-export const ADAPTERS = [chatgptAdapter, geminiAdapter, copilotAdapter, grokAdapter];
+export const ADAPTERS = [chatgptAdapter, geminiAdapter, grokAdapter];
 
 /**
  * Which adapter, if any, handles this hostname.

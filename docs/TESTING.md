@@ -10,10 +10,10 @@ Nothing is marked Passed unless it was actually run and actually passed.
 ```bash
 cd crediclean
 
-npm test                   # 95 unit tests, no network, no browser
+npm test                   # 103 unit tests, no network, no browser
 npm run fetch-samples      # download real C2PA-signed images (optional)
-npm test                   # now also runs 13 tests against those real files
-npm run test:e2e           # 64 checks in a real Chromium with the extension loaded
+npm test                   # now 116, including 13 against those real files
+npm run test:e2e           # 70 checks in a real Chromium with the extension loaded
 npm run verify             # check the manifest against the code
 ```
 
@@ -24,11 +24,12 @@ Playwright and the ability to listen on port 443.
 
 | Suite | Checks | Result |
 |---|---|---|
-| Unit tests (synthetic fixtures) | 82 | **Passed** |
+| Unit tests (synthetic fixtures) | 103 | **Passed** |
 | Unit tests (real signed images) | 13 | **Passed** |
-| Browser tests (real Chromium, extension loaded) | 64 | **Passed** |
+| Browser tests, ChatGPT (real Chromium, extension loaded) | 70 | **Passed** |
+| Browser tests, all three platforms | 48 | **Passed** |
 | Independent check with ImageMagick | 3 images | **Passed** |
-| Live ChatGPT website | — | **Blocked**: no account in this environment |
+| Live websites (ChatGPT, Gemini, Grok) | — | **Passed**, by the product owner, not from this environment |
 
 ## 1. Installation
 

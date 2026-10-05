@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "CrediClean",
-  "version": "0.3.2",
-  "description": "Inspect and remove supported Content Credentials from AI-generated images in ChatGPT, Gemini, Copilot and Grok.",
+  "version": "0.4.0",
+  "description": "Inspect and remove supported Content Credentials from AI-generated images in ChatGPT, Gemini and Grok.",
   "minimum_chrome_version": "111",
   "permissions": [
     "storage"
@@ -10,17 +10,13 @@
   "host_permissions": [
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
-    "https://copilot.microsoft.com/*",
-    "https://designer.microsoft.com/*",
     "https://gemini.google.com/*",
     "https://grok.com/*",
     "https://x.com/*",
     "https://assets.grok.com/*",
-    "https://*.bing.net/*",
     "https://*.googleusercontent.com/*",
     "https://*.oaiusercontent.com/*",
     "https://pbs.twimg.com/*",
-    "https://th.bing.com/*",
     "https://usercontent.google.com/*"
   ],
   "background": {
@@ -32,8 +28,6 @@
       "matches": [
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
-        "https://copilot.microsoft.com/*",
-        "https://designer.microsoft.com/*",
         "https://gemini.google.com/*",
         "https://grok.com/*",
         "https://x.com/*"
@@ -95,15 +89,12 @@
         "src/platforms/base.js",
         "src/platforms/chatgpt.js",
         "src/platforms/gemini.js",
-        "src/platforms/copilot.js",
         "src/platforms/grok.js",
         "src/content/observed-sources.js"
       ],
       "matches": [
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
-        "https://copilot.microsoft.com/*",
-        "https://designer.microsoft.com/*",
         "https://gemini.google.com/*",
         "https://grok.com/*",
         "https://x.com/*"

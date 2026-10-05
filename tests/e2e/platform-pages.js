@@ -6,10 +6,11 @@
  * This markup is OUR RECONSTRUCTION of each site, built from the selectors in
  * the adapters. Passing these tests proves the adapter architecture, the
  * credential engine and the UI work together for a page shaped like this. It
- * does NOT prove the selectors match the real Gemini, Copilot or Grok, because
- * we have no accounts for them and have never seen their real markup.
+ * does NOT prove the selectors still match the real Gemini or Grok, because
+ * we have no accounts for them in this environment and build the markup from
+ * the adapters rather than from a live capture.
  *
- * Only ChatGPT has been confirmed on the live site.
+ * All three platforms were confirmed working on their live sites by hand.
  */
 
 /** Markup per platform, keyed by adapter id. */
@@ -80,21 +81,6 @@ export const PLATFORM_PAGES = {
           })
           .catch(() => {});
       </script>`,
-  },
-
-  copilot: {
-    host: 'copilot.microsoft.com',
-    body: `
-      <header>
-        <img id="avatar" src="/avatar/me.png" width="32" height="32" alt="Account">
-      </header>
-      <main>
-        <div data-testid="message" data-content="user-message"><p>Draw me a picture.</p></div>
-        <div data-testid="message" data-content="ai-message">
-          <p>Here is your image.</p>
-          <img id="generated" class="generated" src="/img?id=file-signed" alt="A generated picture">
-        </div>
-      </main>`,
   },
 
   grok: {

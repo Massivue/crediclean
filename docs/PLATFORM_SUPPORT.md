@@ -1,6 +1,13 @@
-# Four-platform support research
+# Platform support research
 
-Written 5 October 2026 for CrediClean 0.2.0.
+Written 5 October 2026. Updated for CrediClean 0.4.0.
+
+**Scope note.** This research started wider than the shipped product. A fourth
+platform was investigated and then dropped before release, because we never
+confirmed it on the live site and shipping an unverified platform would have
+meant claiming support we could not stand behind. Its findings, its code and
+its permissions were all removed. CrediClean ships with three platforms, and
+all three are confirmed working.
 
 ## How to read this document
 
@@ -13,14 +20,15 @@ Every claim below is labelled:
 
 ### Two limitations on this research, stated up front
 
-1. **We could not generate images on Gemini, Copilot or Grok.** This build
-   environment has no accounts for them. Everything about those three is
-   research plus testing against a reconstruction, not a real file.
-2. **The network here blocks several vendor domains.** `blog.google` and
-   `support.microsoft.com` could not be opened, so the Gemini and Copilot
-   findings come from search-result summaries **of** those first-hand pages,
-   not from the pages themselves. That is weaker evidence and is labelled
-   "vendor-documented" rather than confirmed.
+1. **We could not generate images ourselves on Gemini or Grok.** This build
+   environment has no accounts for them. The rows below marked "not confirmed"
+   are research plus testing against a reconstruction, not a real file. Both
+   platforms were later confirmed end to end **by the product owner on the
+   live site**, and those rows say so.
+2. **The network here blocks several vendor domains.** `blog.google` could not
+   be opened, so some Gemini findings come from search-result summaries **of**
+   that first-hand page, not from the page itself. That is weaker evidence and
+   is labelled "vendor-documented" rather than confirmed.
 
 ## The thing that matters most
 
@@ -240,32 +248,12 @@ distinguishes these: see `docs/TROUBLESHOOTING.md`.
 
 ---
 
-## Microsoft Copilot
-
-| Item | Finding |
-|---|---|
-| Domain | `copilot.microsoft.com`, `designer.microsoft.com` — **vendor-documented** |
-| Image host | **Not confirmed.** `th.bing.com` is Bing's long-standing image CDN and is the most likely, but this is an inference |
-| How images are shown | **Not confirmed.** Adapter targets `[data-content="ai-message"]` and similar |
-| Retrieving the original | **Not confirmed** |
-| Format | **Not confirmed** |
-| C2PA | Images created with Designer's features in Copilot carry Content Credentials based on C2PA — **vendor-documented** |
-| Other provenance | **Not confirmed** |
-| Detection | Implemented, **not confirmed** on the live site |
-| Processing | Shared engine — **not confirmed** for Copilot files specifically |
-| Local only | Yes, by construction |
-
-**Note on surfaces:** Copilot image generation is reachable from more than one
-place, and Bing Image Creator, Designer and Copilot share a generation
-pipeline. The adapter claims the two Copilot/Designer domains. It does **not**
-claim all of `bing.com` or `microsoft.com`, which would be a far broader
-permission than this extension needs.
-
----
-
 ## Grok (xAI)
 
-**This is the platform we are least sure about, and the product reflects that.**
+**Confirmed working on the live site on 5 October 2026** by the product owner:
+credentials were detected and removed. The research rows below are kept
+unchanged as a record of what desk research alone could and could not
+establish, which is why several still read "not confirmed".
 
 | Item | Finding |
 |---|---|
@@ -316,23 +304,22 @@ reconstruction test deliberately exercises.
 | `storage` | Three settings |
 | `chatgpt.com`, `chat.openai.com` | ChatGPT pages |
 | `gemini.google.com` | Gemini pages |
-| `copilot.microsoft.com`, `designer.microsoft.com` | Copilot pages |
 | `grok.com`, `x.com` | Grok pages |
 | `*.oaiusercontent.com` | ChatGPT image files — **confirmed** |
 | `*.googleusercontent.com` | Expected Gemini image files. Cannot be narrowed: Google spreads user content across `lh3`, `lh4` and similar |
-| `th.bing.com`, `*.bing.net` | Expected Copilot image files |
 | `assets.grok.com`, `pbs.twimg.com` | Expected Grok image files |
 | `usercontent.google.com` | Alternative Google user-content host |
 
-Deliberately **not** requested: `<all_urls>`, all of `google.com`,
-`microsoft.com` or `bing.com`, the `downloads` permission, the `tabs`
-permission, history, cookies.
+Deliberately **not** requested: `<all_urls>`, all of `google.com` or `x.com`,
+the `downloads` permission, the `tabs` permission, history, cookies.
 
 These are generated from `src/platforms/`, and `npm run verify` fails if the
 manifest and the adapters ever disagree.
 
 ## What would change these findings
 
-One real file from each platform. If you generate an image on Gemini, Copilot
-or Grok, download it and send it, we can inspect the actual bytes and turn
-most of the "not confirmed" rows above into confirmed ones in a single pass.
+One real file from each platform. All three platforms have now been confirmed
+working end to end on the live site, but several individual rows above are
+still inferences rather than inspected bytes. Sending a downloaded Gemini or
+Grok file would let us inspect the actual bytes and turn most of the remaining
+"not confirmed" rows into confirmed ones in a single pass.

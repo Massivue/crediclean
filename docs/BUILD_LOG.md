@@ -238,7 +238,7 @@ noise.
 - Inspecting and removing credentials in PNG and JPEG, losslessly.
 - Independent confirmation of losslessness (ImageMagick, zero differing pixels).
 - The complete workflow in a real browser, through to a verified download.
-- 119 unit tests, 64 ChatGPT browser checks and 61 four-platform checks, all passing.
+- 116 unit tests, 70 ChatGPT browser checks and 48 three-platform checks, all passing.
 - Minimum permissions, checked against the code automatically.
 
 **Implemented but not verified:**

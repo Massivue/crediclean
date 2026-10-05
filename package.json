@@ -1,8 +1,8 @@
 {
   "name": "crediclean",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
-  "description": "Chrome extension to inspect and remove supported Content Credentials from ChatGPT images.",
+  "description": "Chrome extension to inspect and remove supported Content Credentials from AI-generated images in ChatGPT, Gemini and Grok.",
   "type": "module",
   "license": "MIT",
   "engines": {
