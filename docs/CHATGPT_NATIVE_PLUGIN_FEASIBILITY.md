@@ -219,6 +219,24 @@ Two routes, both **official (second-hand)**:
    returns a temporary URL, and the widget triggers an ordinary browser
    download from it.
 
+### What the widget can and cannot do about downloads
+
+A second pass established this more precisely, and it rules one approach out.
+
+**`window.openai` exposes only four file-related calls**: `uploadFile`,
+`getFileDownloadUrl`, `selectFiles` and `requestClose`. The `downloadFile`
+method that appears in the wider MCP SDK documentation **throws "Method not
+found" inside ChatGPT**. There is no call that lets a widget generate a file
+and hand it to the user directly. **Developer forum, corroborated by the
+reference summary.**
+
+So the processed image cannot be produced inside the widget and saved from
+there, which is how the Chrome extension does it today. It has to exist as a
+file **on the server side** first, and be handed back as a file reference the
+host knows about. That is a different shape of solution, not an impossible
+one, but it means the "it never leaves your machine" design cannot be
+recreated even partially.
+
 ### Four specific reasons for caution
 
 1. **A size limit that may or may not apply.** One OpenAI page states returned
@@ -250,9 +268,24 @@ biggest single difference from the extension.**
 ### What you cannot do
 
 You cannot put a button on ChatGPT's own rendering of a generated image. There
-is no mechanism for it, and there is unlikely ever to be one: your app runs in
-a sandboxed iframe that ChatGPT draws *for you*, in a slot ChatGPT chooses.
-You have no access to ChatGPT's own interface, by design.
+is no mechanism for it, and there is unlikely ever to be one.
+
+Confirmed on a second pass, and the detail matters:
+
+- **Widgets run inside a double-nested, sandboxed iframe** with a strict
+  Content Security Policy, which OpenAI describes as deliberate isolation.
+  **Official (second-hand).**
+- The widget **cannot even reach ordinary browser APIs** such as
+  `window.alert`, `window.prompt`, `window.confirm` or `navigator.clipboard`,
+  let alone reach outside itself into ChatGPT's own page. **Official
+  (second-hand).**
+- Picture-in-picture and fullscreen modes "introduce UI overlays that the
+  widget doesn't control". The host owns the frame; you own only its contents.
+  **Official (second-hand).**
+
+So the isolation that stops a malicious app tampering with ChatGPT is the same
+isolation that stops CrediClean adding a button to an image. It is the point
+of the design, not an oversight, and no amount of engineering gets round it.
 
 The Chrome extension can do this precisely because it is a browser extension
 with permission to modify the page. A ChatGPT app has no equivalent power, and
@@ -260,12 +293,22 @@ asking for one misunderstands what the platform is.
 
 ### What you can do
 
-Your app is invoked in one of two ways (**official, second-hand**):
+There are exactly three ways a user can reach your app, and **you control
+none of them**. All **official (second-hand)**:
 
-1. **The model decides**, from what the user typed. The user says something
-   like "clean this image" and ChatGPT picks your tool.
-2. **From inside your own widget**, with `window.openai.callTool(name, args)`,
-   for tools marked `"openai/widgetAccessible": true`.
+1. **An `@` mention.** The user types `@CrediClean`. They have to know the name.
+2. **The `+` tools menu.** The user opens the menu and picks your app. The
+   choice applies to **that one message**, not to the conversation.
+3. **OpenAI suggests it.** OpenAI says it is "experimenting with ways to
+   surface relevant, helpful apps directly within conversations", using
+   conversational context and usage patterns. This is the closest thing to the
+   discovery the extension gives for free, and it is entirely **OpenAI's
+   decision, not a feature you can build or request**.
+
+Once your widget is on screen it can call your own other tools with
+`window.openai.callTool(name, args)`, for tools marked
+`"openai/widgetAccessible": true`. That is how the button inside your card
+works. It does not help the user find the card in the first place.
 
 So the realistic best case is:
 
@@ -355,10 +398,26 @@ it is verifiable in an afternoon alongside the test in section 2.
 **PARTIAL. The pipeline exists and is open. Whether CrediClean would survive
 it is a different question, and I think the odds are poor.**
 
+### A limit on "available to everyone" that I missed on the first pass
+
+**Apps in ChatGPT are reported as available to logged-in users on Free, Go,
+Plus and Pro plans — OUTSIDE the European Economic Area, Switzerland and the
+United Kingdom.** **Official (second-hand), from an OpenAI help article.**
+
+If that is current, publishing CrediClean as a ChatGPT app would **not** make
+it available to users in the EU, the UK or Switzerland at all. The Chrome Web
+Store has no such exclusion.
+
+I would not treat this as settled: regional availability changes often and
+this is one sentence in a summary of one help page. But it is the kind of
+thing that turns "available to everyone" into something much smaller, so
+confirm it before counting on reach.
+
 ### The pipeline exists
 
 **Official (second-hand).** Developers can submit apps for review; approved
-apps appear in an in-product directory users can browse and search.
+apps appear in an in-product directory users can browse and search, at
+`chatgpt.com/apps` or from the `+` tools menu.
 
 Requirements I could establish:
 
@@ -593,6 +652,77 @@ the blockers above, and it would be a shame not to say so.
 
 ---
 
+## 12. What the user experience would actually be
+
+Added on a second pass, because the question "can it show CC on the image"
+deserves a concrete walk-through rather than a one-word no.
+
+### What you pictured
+
+```
+  [ generated image ]
+        [CC]              ← a button on the picture
+          ↓
+  Content Credentials found
+  [ Remove credentials & save ]
+```
+
+**This is not possible.** Not with effort, not with a workaround. The widget
+lives in a sandboxed frame that cannot reach ChatGPT's own page.
+
+### What you would actually get
+
+```
+ 1. User generates an image in ChatGPT.
+        ↓
+ 2. NOTHING APPEARS.  ← the whole difference, in one line
+        ↓
+ 3. The user must already know CrediClean exists, and must either
+    type "@CrediClean" or open the + menu and pick it.
+        ↓
+ 4. ChatGPT calls your tool and passes the image file reference.
+        ↓
+ 5. Your server fetches the image, inspects it, and replies.
+        ↓
+ 6. Your card appears in the conversation:
+
+        ┌────────────────────────────────┐
+        │ CC  CrediClean                 │
+        │ ● Content Credentials found    │
+        │   Format   PNG                 │
+        │   Size     1536 × 1024         │
+        │ [ Remove credentials & save ]  │ ← your button, in your card
+        └────────────────────────────────┘
+        ↓
+ 7. User clicks it. Your server processes and returns a file.
+        ↓
+ 8. ChatGPT shows a downloadable file.
+```
+
+Steps 4 to 8 are plausible. **Step 2 is the problem, and it is not a technical
+one.** Nothing can be built that makes the app announce itself on an image.
+
+### Side by side
+
+| | Chrome extension (today) | ChatGPT app |
+|---|---|---|
+| User sees something on the image | **Yes**, the CC button | **No** |
+| User must know the app exists | No | **Yes** |
+| User must type a name or use a menu | No | **Yes**, every time |
+| Panel with Format / Size / action | Yes | Yes |
+| Can download the processed file | Yes | Probably |
+| Image stays on the device | **Yes** | **No** |
+| Works on phones | No | **Probably not today** |
+| Works in the EU, UK, Switzerland | **Yes** | **Reportedly not** |
+| Costs per user | **Nothing** | Server and bandwidth |
+
+The ChatGPT app is worse on the row that drives adoption, worse on privacy,
+unproven on the row you want it for, and reportedly unavailable in a large
+part of the world. It is better on nothing except the theoretical possibility
+of mobile.
+
+---
+
 ## 15. The final question
 
 > **"Can we realistically build CrediClean as a publicly available
@@ -689,3 +819,12 @@ from this machine. Grouped by how much weight I put on them.
 - [ChatGPT connector returns empty {} for MCP tool results with type: "image"](https://community.openai.com/t/chatgpt-connector-returns-empty-for-mcp-tool-results-with-type-image-while-same-tool-works-in-mcp-inspector/1375446)
 - [Issues with unstable natural language invocation and duplicate tool calls](https://community.openai.com/t/issues-with-unstable-natural-language-invocation-and-duplicate-tool-calls/1370573)
 - [Status of writes capability in SDK?](https://community.openai.com/t/status-of-writes-capability-in-sdk/1373092)
+- [`app.downloadFile()` returns "Method not found" in ChatGPT host](https://community.openai.com/t/app-downloadfile-returns-method-not-found-in-chatgpt-host/1378708)
+
+**Added on the second pass (sections 4, 5, 7 and 12)**
+
+- [UI guidelines](https://developers.openai.com/apps-sdk/concepts/ui-guidelines)
+- [Security & Privacy](https://developers.openai.com/apps-sdk/guides/security-privacy)
+- [Connected apps in ChatGPT](https://help.openai.com/en/articles/11487775-connected-apps-in-chatgpt)
+- [Troubleshooting plugins & apps in ChatGPT](https://help.openai.com/en/articles/20001497-troubleshooting-apps-in-chatgpt)
+- [ChatGPT supported countries](https://help.openai.com/en/articles/7947663-chatgpt-supported-countries)
