@@ -13,7 +13,8 @@
     "test": "node --test \"tests/unit/**/*.test.js\"",
     "test:e2e": "node tests/e2e/run-app-tests.js",
     "check": "npm test && npm run test:e2e && npm run test:widget",
-    "test:widget": "node tests/e2e/run-widget-tests.js"
+    "test:widget": "node tests/e2e/run-widget-tests.js",
+    "package": "node scripts/package-plugin.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

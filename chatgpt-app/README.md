@@ -102,6 +102,7 @@ npm test           # 15 unit checks: the file layer and the SSRF guard
 npm run test:e2e   # 52 checks: a real MCP client against the real server
 npm run test:widget # 34 checks: the panel in a real Chromium
 npm run check      # all three
+npm run package https://your-server.example.com   # build the plugin archive
 ```
 
 `npm run test:widget` needs Playwright: `npm install --no-save playwright`.
@@ -142,20 +143,46 @@ widen this to everything.**
 
 ---
 
+## Which of ChatGPT's three "Add" options you want
+
+ChatGPT's Plugins page offers three things, and only one of them is for
+testing this.
+
+| Menu item | What it is | Use it? |
+|---|---|---|
+| **Create custom MCP server** | Connect a running server, by public URL **or by Secure MCP Tunnel** | **Yes. This is the one.** |
+| **Upload plugin archive** | A ZIP holding a manifest that POINTS AT your server | Later, for packaging |
+| **Create plugin** | Build a plugin in ChatGPT's own UI | No |
+
+**The archive does not contain the server, and OpenAI does not run it for
+you.** It is a label saying where your tools live. The server still has to be
+running and reachable. So uploading an archive cannot, by itself, test
+anything. `npm run package` builds one when you want it.
+
+**Secure MCP Tunnel is the useful discovery here.** OpenAI documents it as a
+way to connect a local or private MCP server "without exposing the server to
+the public internet". That means you can test from your own machine with no
+ngrok, no cloudflared and nothing publicly exposed. Its one limit: a tunnel
+does not satisfy the requirements for public submission, which only matters
+much later.
+
 ## Testing it against the real ChatGPT
 
 This is the part the automated tests cannot do, and the only part that answers
 whether the idea works. Do it in this order, and stop at the first failure.
 
-You need a public HTTPS address. A tunnel such as `ngrok http 8787` or
-`cloudflared tunnel` is fine for testing. Set `CREDICLEAN_PUBLIC_URL` to the
-address it gives you, and restart.
-
 ### Step 1 — Connect it, on desktop web
 
-1. In ChatGPT, turn on **developer mode** (Settings → Connectors / Apps).
-2. Add an MCP connector pointing at `https://<your-address>/mcp`.
-3. Confirm both tools appear in the list.
+1. Start the server: `npm start`. Leave the log where you can see it.
+2. In ChatGPT: **Settings → Security and login → Developer mode**, turn it on.
+3. Go to **Plugins → Add → Create custom MCP server**.
+4. Give it a name, then under **Connection**:
+   - **Secure MCP Tunnel** (recommended): choose **Tunnel** and pick or enter
+     the tunnel id. Nothing of yours goes on the public internet.
+   - **Public URL**: only if you have one. Enter it **including `/mcp`**, and
+     set `CREDICLEAN_PUBLIC_URL` to the same address before starting, or the
+     download links it builds will point at localhost and fail.
+5. Confirm both tools appear in the list.
 
 If the tools do not appear, the problem is the connection, not the app. Check
 the server log, and check `/health` answers over your public address.
