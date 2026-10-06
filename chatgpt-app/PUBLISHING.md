@@ -11,6 +11,47 @@ if something differs, the fix is usually one line in
 
 ---
 
+## Where to go: two different places, and mixing them up wastes a day
+
+**The place you tested is NOT the place you publish.** They look similar and
+they are not the same thing.
+
+| | Testing (what you did) | Publishing (what you want now) |
+|---|---|---|
+| Where | **ChatGPT itself** | **The OpenAI developer dashboard** |
+| Path | Plugins → Add → Upload plugin archive | Plugins → Upload new or existing plugin |
+| Who gets it | **Only you** | **Everyone**, after review |
+| Needs verified identity | No | **Yes** |
+| Review | None | Scans, then a human |
+
+Uploading in ChatGPT installs the plugin for your own account. It does not
+submit anything to anybody, and nobody else can see it. That is why it worked
+instantly.
+
+### The addresses
+
+| What | Where |
+|---|---|
+| **Official submission instructions** | <https://developers.openai.com/plugins/deploy/submission> |
+| The same page, other site | <https://learn.chatgpt.com/docs/submit-plugins> |
+| **Identity verification** | <https://platform.openai.com/settings> → organization → **General** |
+| Submission errors explained | <https://developers.openai.com/plugins/deploy/submission-errors> |
+| Plugin rules you must meet | <https://developers.openai.com/plugins/plugin-guidelines> |
+
+**Honesty about these links.** Every OpenAI domain is blocked from the machine
+this was written on, so I could not open any of them. The two documentation
+addresses are real pages that a search index returned; the verification path
+is OpenAI's own wording ("complete individual or business verification in
+organization settings", in the "OpenAI Platform Dashboard general settings"),
+with the exact sub-page inferred rather than seen.
+
+**There is no deep link to the upload screen that I can confirm.** Sign in to
+the developer dashboard and look for **Plugins** in the navigation. The
+submission instructions page above is the reliable starting point: open it,
+and follow its own link to the portal.
+
+---
+
 ## Before you start: the one thing that might stop this
 
 Approval is **not** guaranteed, and the reason is not technical.
@@ -81,12 +122,22 @@ The same applies to the support and website URLs in the manifest.
 
 ## Step 4 — Upload and create the draft
 
-> ChatGPT → **Plugins** → **Add** → **Create plugin** → choose **Skills only**
-> → upload `crediclean-plugin-1.0.0.zip`
+In the **developer dashboard**, not in ChatGPT.
 
-Choosing **Skills only** matters. CrediClean has no MCP server in this
-archive, and a skills-only plugin skips several requirements that would
-otherwise apply: **no MCP review cases, and no demo recording**.
+1. Open **Plugins**.
+2. Select **Upload new or existing plugin**.
+3. Choose your **verified Developer identity**. Whatever name you pick here is
+   the publisher name shown in the directory, so pick the Massivue one.
+4. Select **Upload plugin** and choose `crediclean-plugin-1.0.0.zip`.
+5. Choose **Skills only** when asked what kind of plugin this is.
+
+Step 5 matters. CrediClean has no MCP server in this archive, and a
+skills-only plugin skips requirements that would otherwise apply: **no MCP
+review cases, and no demo recording**.
+
+After validation the plugin's detail page opens with your draft. **If
+validation fails it names the package errors**; fix them per step 6 and upload
+again.
 
 The portal converts your manifest and fills in interface defaults. **Read what
 it generated** before going further, particularly the display name, the short
@@ -155,7 +206,16 @@ The ones that apply here:
 
 Then submit the draft.
 
-## Step 9 — Wait, then respond
+## Step 9 — Wait, then publish
+
+Track progress under **Review status** on the Plugins page. The review team's
+feedback arrives **by email**.
+
+**Approval is not the same as being live.** Once approved, you still choose
+when to release it: open the approved package version and select **Publish
+plugin**. Until you do that, nobody can install it.
+
+## Step 10 — Responding to the review
 
 I do not know the current review time and will not invent a figure.
 
