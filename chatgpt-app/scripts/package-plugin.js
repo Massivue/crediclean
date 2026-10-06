@@ -71,7 +71,7 @@ const manifest = {
     'com.openai': {
       interface: {
         displayName: 'CrediClean',
-        shortDescription: 'Inspect and remove image Content Credentials',
+        shortDescription: 'Clean Content Credentials',
         longDescription:
           'CrediClean reads the Content Credentials (C2PA provenance metadata) inside an ' +
           'image and can remove them, handing back a clean copy. The picture itself is ' +
@@ -81,8 +81,11 @@ const manifest = {
           'never makes an image untraceable or human-made. It removes metadata, and ' +
           'says so.',
         developerName: 'Massivue',
-        category: 'productivity',
-        privacyPolicyUrl: 'https://github.com/Massivue/crediclean/blob/main/PRIVACY.md',
+        category: 'Productivity',
+        privacyPolicyUrl:
+          'https://github.com/Massivue/crediclean/blob/main/chatgpt-app/PRIVACY.md',
+        supportUrl: 'https://github.com/Massivue/crediclean/issues',
+        websiteUrl: 'https://github.com/Massivue/crediclean',
       },
       // Where the skill lives inside this archive.
       skills: './skills/',
@@ -103,9 +106,16 @@ const mcp = serverUrl
   : null;
 
 /*
- * A second copy of the pointers under .codex-plugin/, which the documentation
- * describes as a compatibility fallback. Harmless if unused, and it costs one
- * small file to not find out the hard way that it was needed.
+ * The same pointers again, in two other places.
+ *
+ * OpenAI's documentation names `.claude-plugin/plugin.json` as what the
+ * submission portal reads, and `.codex-plugin/plugin.json` as a compatibility
+ * manifest the portal generates. Which one a given upload path wants is not
+ * something that could be settled from here, since their site is unreachable.
+ *
+ * So all three are written: the portable root manifest, and both of these.
+ * They are a few hundred bytes each. Carrying one spare beats a rejection
+ * that costs a two-hour scan to discover.
  */
 const codexManifest = {
   name: manifest.name,
@@ -114,6 +124,78 @@ const codexManifest = {
   skills: './skills/',
   ...(serverUrl ? { mcpServers: './mcp.json' } : {}),
 };
+
+/*
+ * Check the manifest against OpenAI's documented submission rules BEFORE
+ * building anything.
+ *
+ * These limits are easy to break and the consequence is a rejected upload
+ * hours later, after a scan that takes up to two hours. Encoding them here
+ * means a bad archive cannot be produced in the first place, and the error
+ * says which rule and by how much.
+ *
+ * The rules come from OpenAI's submission-errors documentation, read through
+ * a search engine rather than directly, since their site is unreachable from
+ * here. If the portal rejects something this passes, add the rule here as
+ * well as fixing the value, so the next person does not hit it.
+ */
+const CATEGORIES = [
+  'Productivity', 'Creativity', 'Developer Tools', 'Business & Operations',
+  'Data & Analytics', 'Communication', 'Education & Research', 'Security',
+  'Finance', 'Healthcare', 'Travel', 'Entertainment', 'Other',
+];
+
+function validate(m) {
+  const ui = m.extensions['com.openai'].interface;
+  const problems = [];
+
+  if (!m.name || m.name.length > 64) problems.push('name must be 1 to 64 characters');
+  if (!/^\d+\.\d+\.\d+$/.test(m.version || '')) {
+    problems.push(`version must be semantic, like 1.0.0 (got "${m.version}")`);
+  }
+  if (!m.description) problems.push('description must not be empty');
+  if (!m.author?.name) problems.push('author.name is required');
+
+  if (!ui.displayName) problems.push('interface.displayName is required');
+  if (!ui.developerName) problems.push('interface.developerName is required');
+  if (!ui.longDescription) problems.push('interface.longDescription is required');
+
+  if (!ui.shortDescription) {
+    problems.push('interface.shortDescription is required');
+  } else if (ui.shortDescription.length > 30) {
+    problems.push(
+      `interface.shortDescription must be 30 characters or fewer for directory ` +
+        `submission (got ${ui.shortDescription.length}: "${ui.shortDescription}")`,
+    );
+  }
+
+  if (!CATEGORIES.includes(ui.category)) {
+    problems.push(
+      `interface.category must be exactly one of: ${CATEGORIES.join(', ')} (got "${ui.category}")`,
+    );
+  }
+
+  /*
+   * The one claim this product must never make, checked in the text a
+   * reviewer and every user will read.
+   */
+  const copy = `${m.description} ${ui.shortDescription} ${ui.longDescription}`;
+  for (const match of copy.matchAll(/untraceable|undetectable/gi)) {
+    const before = copy.slice(Math.max(0, match.index - 60), match.index);
+    if (!/\b(not|never|cannot)\b/i.test(before)) {
+      problems.push(`listing copy claims an image becomes "${match[0]}"`);
+    }
+  }
+
+  if (problems.length > 0) {
+    console.error('\nThe manifest breaks rules the submission portal enforces:\n');
+    for (const problem of problems) console.error(`  - ${problem}`);
+    console.error('\nFix them in scripts/package-plugin.js and build again.\n');
+    process.exit(1);
+  }
+}
+
+validate(manifest);
 
 function write(relativePath, data) {
   const target = path.join(BUILD, 'crediclean', relativePath);
@@ -126,6 +208,7 @@ fs.rmSync(BUILD, { recursive: true, force: true });
 write('plugin.json', manifest);
 if (mcp) write('mcp.json', mcp);
 write('.codex-plugin/plugin.json', codexManifest);
+write('.claude-plugin/plugin.json', codexManifest);
 
 /*
  * The skill itself: SKILL.md plus the Python that does the work. This is the

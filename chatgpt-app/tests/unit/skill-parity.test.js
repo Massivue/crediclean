@@ -197,6 +197,30 @@ test('parity: rubbish is refused by both rather than crashing', () => {
   assert.equal(py.report.ok, false);
 });
 
+test('the skill makes no network access, which the privacy policy promises', () => {
+  /*
+   * PRIVACY.md states the skill sends nothing anywhere and makes no network
+   * requests. That is only true while this stays true, so it is asserted
+   * rather than trusted: a stray `import urllib` would quietly turn a
+   * published privacy promise into a false one.
+   */
+  const source = fs.readFileSync(SCRIPT, 'utf8');
+  const imported = new Set();
+  for (const match of source.matchAll(/^\s*(?:import|from)\s+([A-Za-z_][\w.]*)/gm)) {
+    imported.add(match[1].split('.')[0]);
+  }
+  assert.deepEqual(
+    [...imported].sort(),
+    ['json', 'sys'],
+    'the skill imported something new; if it can reach the network, PRIVACY.md is now false',
+  );
+
+  // And no network calls smuggled in without an import.
+  for (const banned of ['urlopen', 'socket.', 'requests.', 'http.client', 'subprocess']) {
+    assert.ok(!source.includes(banned), `the skill used ${banned}`);
+  }
+});
+
 test('the Python never claims an image is untraceable', () => {
   const source = fs.readFileSync(SCRIPT, 'utf8');
   /*

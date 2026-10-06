@@ -1,6 +1,6 @@
 {
   "name": "crediclean-chatgpt-app",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "CrediClean as a ChatGPT app: an MCP server that inspects and removes Content Credentials from images in a ChatGPT conversation.",
   "type": "module",
